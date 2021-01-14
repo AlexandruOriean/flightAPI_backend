@@ -16,16 +16,10 @@ public class AirlineController {
     @Autowired
     private AirlineService airlineService;
 
-    @Autowired
-    private final AirlineRepository airlineRepository;
-
-    public AirlineController(AirlineRepository airlineRepository) {
-        this.airlineRepository = airlineRepository;
-    }
 
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     List<Airline> getAirlines() {
-        return airlineRepository.findAll();
+        return airlineService.getAllAirlines();
     }
 
     @PostMapping()

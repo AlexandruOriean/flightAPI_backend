@@ -23,7 +23,8 @@ public class AirplaneServiceImpl implements AirplaneService {
 
     @Override
     public Airplane getAirplaneById(Long id) {
-        return airplaneRepository.findById(id);
+//        return airplaneRepository.findById(id);
+        return null;
     }
 
     @Override
