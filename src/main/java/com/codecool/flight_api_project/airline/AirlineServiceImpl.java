@@ -37,4 +37,9 @@ public class AirlineServiceImpl implements AirlineService{
         return airlineRepository.findAll();
     }
 
+    @Override
+    public Airline findById(Long id) {
+        return airlineRepository.getOne(id);
+    }
+
 }

@@ -13,5 +13,5 @@ public interface AirlineService {
 
     List<Airline> getAllAirlines();
 
-
+    Airline findById(Long id);
 }

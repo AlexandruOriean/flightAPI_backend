@@ -101,13 +101,16 @@ import static org.mockito.Mockito.doReturn;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 
@@ -126,6 +129,7 @@ import java.util.List;
 //@ContextConfiguration(classes = FlightApiProjectApplication.class)
 @SpringBootTest
 @AutoConfigureMockMvc
+@WithMockUser(username = "user", roles = "ADMIN")
 public class AirlineControllerTests {
 
     @Autowired
@@ -135,9 +139,9 @@ public class AirlineControllerTests {
     private AirlineService airlineService;
 
     @Test
-    @WithMockUser
     @DisplayName("Test all airlines found - GET /api/v1/airlines")
     public void testAllAirlinesFound() throws Exception {
+        // Prepare mock airlines
         Airline tarom = new Airline(10000L, "Tarom", "TRO");
         Airline wizz = new Airline(10001L, "Wizz", "WIZZ");
         Airline blueAir = new Airline(10002L, "BlueAir", "BLA");
@@ -147,14 +151,45 @@ public class AirlineControllerTests {
         airlines.add(wizz);
         airlines.add(blueAir);
 
+//        Prepare mock service method
         doReturn(airlines).when(airlineService).getAllAirlines();
 
+//        Perform GET request
         mockMvc.perform(get("/api/v1/airlines"))
+//                Validate 200 OK and JSON response type received
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+
+//                Validate response body
                 .andExpect(jsonPath("$[0].name", is("Tarom")))
                 .andExpect(jsonPath("$[1].name", is("Wizz")))
                 .andExpect(jsonPath("$[2].name", is("BlueAir")));
+
+    }
+
+    @Test
+    @DisplayName("Add a new Ariline - POST /api/v1/airlines")
+    void testAddNewAirline() throws Exception {
+//        Prepare mock airline
+        Airline tarom = new Airline((long) 10000, "Tarom", "TRO");
+
+//        Prepare mock service method
+        doReturn(tarom).when(airlineService).saveAirline(ArgumentMatchers.any());
+
+//        Perform POST request
+        mockMvc.perform(post("/api/v1/airlines")
+            .contentType(MediaType.APPLICATION_JSON_VALUE)
+            .content(new ObjectMapper().writeValueAsString(tarom)))
+
+                .andExpect(status().isCreated())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
+
+                .andExpect(header().string(HttpHeaders.VARY, "Origin"))
+                .andExpect(header().string(HttpHeaders.CONTENT_TYPE, "application/json"))
+
+                .andExpect(jsonPath("$.id", is(10000)))
+                .andExpect(jsonPath("$.name", is("Tarom")))
+                .andExpect(jsonPath("$.iso", is("TRO")));
 
     }
 }

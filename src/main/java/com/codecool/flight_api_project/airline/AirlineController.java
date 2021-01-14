@@ -1,4 +1,5 @@
 package com.codecool.flight_api_project.airline;
+import com.codecool.flight_api_project.airplane.Airplane;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -20,6 +21,12 @@ public class AirlineController {
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     List<Airline> getAirlines() {
         return airlineService.getAllAirlines();
+    }
+
+    @GetMapping(path = "/{id}",
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public Airline getAirlineById(@PathVariable Long id){
+        return airlineService.findById(id);
     }
 
     @PostMapping()
