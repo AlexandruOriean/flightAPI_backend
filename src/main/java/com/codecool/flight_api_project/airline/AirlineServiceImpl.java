@@ -26,7 +26,7 @@ public class AirlineServiceImpl implements AirlineService{
 
     @Override
     public Airline updateAirlineById(Long id, Airline airlineToUpdate) {
-        Airline airline = airlineRepository.findById(id).get();
+        Airline airline = airlineRepository.getOne(id);
         airline.setIso(airlineToUpdate.getIso());
         airline.setName(airlineToUpdate.getName());
         return airlineRepository.save(airline);
