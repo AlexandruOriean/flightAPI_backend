@@ -168,7 +168,7 @@ public class AirlineControllerTests {
     }
 
     @Test
-    @DisplayName("Add a new Ariline - POST /api/v1/airlines")
+    @DisplayName("Add a new Airline - POST /api/v1/airlines")
     void testAddNewAirline() throws Exception {
 //        Prepare mock airline
         Airline tarom = new Airline((long) 10000, "Tarom", "TRO");
@@ -182,6 +182,32 @@ public class AirlineControllerTests {
             .content(new ObjectMapper().writeValueAsString(tarom)))
 
                 .andExpect(status().isCreated())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
+
+                .andExpect(header().string(HttpHeaders.VARY, "Origin"))
+                .andExpect(header().string(HttpHeaders.CONTENT_TYPE, "application/json"))
+
+                .andExpect(jsonPath("$.id", is(10000)))
+                .andExpect(jsonPath("$.name", is("Tarom")))
+                .andExpect(jsonPath("$.iso", is("TRO")));
+
+    }
+
+    @Test
+    @DisplayName("Update an existing airline with succes - PUT /api/v1/airlines/10000")
+    public void testUpdatingAirlineWithSucces() throws Exception{
+        Airline mockAirline = new Airline((long) 10000, "Tarom", "TRO");
+        Airline airlineToUpdate = new Airline((long) 10000, "Wizz", "WIZZ");
+
+        doReturn(mockAirline).when(airlineService).findById((long) 10000);
+        doReturn(mockAirline).when(airlineService).updateAirlineById(ArgumentMatchers.any(), ArgumentMatchers.any());
+
+        mockMvc.perform(put("/api/v1/airlines/{id}",1)
+        .contentType(MediaType.APPLICATION_JSON_VALUE)
+        .header(HttpHeaders.IF_MATCH, 10000)
+        .content(new ObjectMapper().writeValueAsString(airlineToUpdate)))
+
+                .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
 
                 .andExpect(header().string(HttpHeaders.VARY, "Origin"))
