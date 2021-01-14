@@ -2,11 +2,8 @@ package com.codecool.flight_api_project.flight;
 
 
 import com.codecool.flight_api_project.airline.Airline;
-import com.codecool.flight_api_project.airline.AirlineService;
 import com.codecool.flight_api_project.airport.Airport;
-import com.codecool.flight_api_project.airport.AirportService;
 import com.codecool.flight_api_project.city.City;
-import com.codecool.flight_api_project.city.CityService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -94,7 +91,7 @@ public class FlightControllerTests {
 
         mockMvc.perform(get("/api/v1/flights"))
                 .andExpect(status().isOk())
-                .andExpect(header().string(HttpHeaders.CONTENT_TYPE, "application/json"))
+                .andExpect(header().string(HttpHeaders.CONTENT_TYPE, "application/json"));
 
     }
 
