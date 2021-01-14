@@ -1,12 +1,13 @@
 package com.codecool.flight_api_project.airplane;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface AirplaneService {
 
     List<Airplane> getAllAirplanes();
 
-    Airplane getAirplaneById(Long id);
+    Optional<Airplane> getAirplaneById(Long id);
 
     Airplane addAirplane(Airplane airplane);
 
