@@ -40,27 +40,23 @@ public class CityControllerTest {
     @DisplayName("Test all cities found - GET/ api/v1/cities")
     public void testAllCities() throws Exception{
 
-
-        // Prepare mock products
-        City city1 = new City(2L,"Aachen");
-        City city2 = new City(3L ,"Aalborg");
+        City city1 = new City(1L,"108 Mile");
+        City city2 = new City(2L ,"Aachen");
 
         List<City> cityList = new ArrayList<>();
         cityList.add(city1);
         cityList.add(city2);
 
-        // Prepare mock service method
+
         doReturn(cityList).when(cityService).getAllcities();
-
-        // Perform GET request
         mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/cities"))
-                // Validate 200 OK and JSON response type received
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE));
 
-                // Validate response body
-//                .andExpect(jsonPath("$[0].name", is("First City")))
-//                .andExpect(jsonPath("$[1].name", is("Second City")));
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
+
+//
+                .andExpect(jsonPath("$[0].cityName", is("108 Mile")))
+                .andExpect(jsonPath("$[1].cityName", is("Aachen")));
 
     }
 }
