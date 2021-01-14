@@ -30,7 +30,6 @@ public class FlightServiceTests {
     @Test
     @DisplayName("Test all flights found in database - Service")
     void testAllFlightsFoundDB(){
-
         City bucuresti = new City(12L, "Bucuresti");
         City londra = new City(21L, "Londra");
         City rome = new City(21L, "Rome");
@@ -48,7 +47,6 @@ public class FlightServiceTests {
                 )).collect(Collectors.toList()));
 
         assertEquals(5, flightService.getAllFlights().size());
-
     }
 
     @Test
