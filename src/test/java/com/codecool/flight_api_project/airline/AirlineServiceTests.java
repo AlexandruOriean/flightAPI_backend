@@ -1,6 +1,4 @@
 package com.codecool.flight_api_project.airline;
-import com.codecool.flight_api_project.flight.FlightRepository;
-import com.codecool.flight_api_project.flight.FlightService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
