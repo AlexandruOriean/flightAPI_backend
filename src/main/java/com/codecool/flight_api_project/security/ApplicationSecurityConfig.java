@@ -4,6 +4,7 @@ import com.codecool.flight_api_project.security.jwt.AuthEntryPointJwt;
 import com.codecool.flight_api_project.security.jwt.AuthTokenFilter;
 import com.codecool.flight_api_project.security.service.UserDetailsServiceImpl;
 import com.codecool.flight_api_project.user.UserRoleEnum;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;

@@ -29,36 +29,4 @@ class AirplaneControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @BeforeEach
-    void setUp() {
-    }
-
-//    @Test
-//    @DisplayName("Test airplanes found - GET /airplanes")
-//    void getAirplanes() {
-//        Airplane mockAirplaneOne = new Airplane(1L, "Airbus", "A380", 853L, 1185);
-//        Airplane mockAirplaneTwo = new Airplane(2L, "Boeing", "737MAX", 180L, 800);
-//
-//        doReturn(mockAirplaneOne).when(airplaneService.).findById(mockAirplaneOne.getId());
-//
-//        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/airplanes/{id}", 1))
-//                .andExpect(status().isOk())
-//                .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE));
-//    }
-
-    @Test
-    void getAirplaneBy() {
-    }
-
-    @Test
-    void addAirplane() {
-    }
-
-    @Test
-    void deleteAirplaneById() {
-    }
-
-    @Test
-    void updateAirplaneById() {
-    }
 }
