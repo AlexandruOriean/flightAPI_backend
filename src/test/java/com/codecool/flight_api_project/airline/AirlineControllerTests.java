@@ -115,18 +115,11 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 
 import org.springframework.test.context.junit.jupiter.SpringExtension;
-
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.ResultMatcher;
-
 import java.util.ArrayList;
 import java.util.List;
 
-
-//@WebMvcTest(AirlineController.class)
 @ExtendWith(SpringExtension.class)
-//@WebMvcTest(value = AirlineController.class,  excludeAutoConfiguration = {ApplicationSecurityConfig.class})
-//@ContextConfiguration(classes = FlightApiProjectApplication.class)
 @SpringBootTest
 @AutoConfigureMockMvc
 @WithMockUser(username = "user", roles = "ADMIN")
@@ -217,5 +210,16 @@ public class AirlineControllerTests {
                 .andExpect(jsonPath("$.name", is("Tarom")))
                 .andExpect(jsonPath("$.iso", is("TRO")));
 
+    }
+
+    @Test
+    @DisplayName("Delete an airline - DELETE /api/v1/airlines/10000")
+    public void testDeleteAirline() throws Exception {
+        Airline existingAirline = new Airline((long) 10000, "Tarom", "TRO");
+
+        doReturn(existingAirline).when(airlineService).findById((long) 10000);
+
+        mockMvc.perform(delete( "/api/v1/airlines/{id}", 1))
+                .andExpect(status().isOk());
     }
 }
