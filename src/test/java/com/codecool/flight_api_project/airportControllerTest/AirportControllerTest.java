@@ -42,29 +42,24 @@ public class AirportControllerTest {
     @Test
     @DisplayName("Add a new airplane - POST /api/v1/airports")
     public void saveAirportTest() throws Exception {
-        // Prepare mock product
-        Airport airport1 = new Airport(1112L,"AAH","Aachen-Merzbrück Airport",new City(2L,"Aachen"));
 
-        // Prepare mock service method
+        Airport airport1 = new Airport(1112L,"AAH","Aachen-Merzbruck Airport",new City(2L,"Aachen"));
         doReturn(airport1).when(airportService).saveAirport(ArgumentMatchers.any());
 
-        // Perform POST request
         mockMvc.perform(post("/api/v1/airports")
                 .contentType(MediaType.APPLICATION_JSON_VALUE)
                 .content(new ObjectMapper().writeValueAsString(airport1)))
 
-                // Validate 201 CREATED and JSON response type received
+
                 .andExpect(status().isCreated())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
 
-                // Validate response headers
                 .andExpect(header().string(HttpHeaders.VARY, "Origin"))
                 .andExpect(header().string(HttpHeaders.PRAGMA,"no-cache"))
 
-                // Validate response body
-                .andExpect(jsonPath("$.id", is(1112L)))
+                .andExpect(jsonPath("$.id", is(1112)))
                 .andExpect(jsonPath("$.airportIataCode", is("AAH")))
-                .andExpect(jsonPath("$.airportName", is("Aachen-Merzbrück Airport")))
-                .andExpect(jsonPath("$.city", is(new City(2L,"Aachen"))));
+                .andExpect(jsonPath("$.airportName", is("Aachen-Merzbruck Airport")));
+
     }
 }
