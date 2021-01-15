@@ -12,7 +12,4 @@ public interface AirlineRepository extends JpaRepository<Airline, Long>
 //    @Modifying
     @Query(value = "insert into AIRLINE (NAME) values (:nameAirline)", nativeQuery = true)
     void addNewAirline(@Param("nameAirline") String nameAirline);
-
-
-
 }

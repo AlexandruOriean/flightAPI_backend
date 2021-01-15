@@ -73,23 +73,6 @@ public class AirlineServiceTests {
         verify(airlineRepository, times(1)).deleteById(airlineId);
     }
 
-//    @Test
-//    void getFlightsByParamsTest(){
-//        City cityFrom = new City(12L, "Bucuresti");
-//        City cityTo = new City(21L, "Londra");
-//        Airport airportFrom = new Airport(1L,"Otopeni", "OTP",cityFrom);
-//        Airport airportTo = new Airport(2L,"Heathrow", "HTW",cityTo);
-//        Airline airline = new Airline(10000L, "Tarom", "TRO");
-//
-//        when(flightRepository.getFlightByParams(airportFrom.getAirportName(),
-//                airportTo.getAirportName(), LocalDate.of(2021, 1,15))).thenReturn(
-//                (Stream.of(new Flight(1L, LocalDate.of(2021, 1,15), 100L, LocalTime.of(9, 20),LocalTime.of(11, 20),airportFrom,airportTo,airline),
-//                        new Flight(1L, LocalDate.of(2021, 1,15), 100L, LocalTime.of(10, 20),LocalTime.of(12, 20),airportFrom,airportTo,airline),
-//                        new Flight(1L, LocalDate.of(2021, 1,15), 100L, LocalTime.of(10, 20),LocalTime.of(13, 20),airportFrom,airportTo,airline)
-//                )).collect(Collectors.toList()));
-//        System.out.println(flightService.getFlightByParams(airportFrom.getAirportName(),airportTo.getAirportName(), LocalDate.of(2021, 1,15)).size());
-//        assertEquals(3,flightService.getFlightByParams(airportFrom.getAirportName(),airportTo.getAirportName(), LocalDate.of(2021, 1,15)).size());
-//    }
 }
 
 

@@ -21,7 +21,7 @@ public class AirportServiceImpl implements AirportService {
 
     @Override
     public Airport updateAirportById(Long id, Airport airportToUpdate) {
-        Airport airport = airportRepository.findById(id).get();
+        Airport airport = airportRepository.getOne(id);
         airport.setAirportName(airportToUpdate.getAirportName());
         airport.setAirportIataCode(airportToUpdate.getAirportIataCode());
         airport.setCity(airportToUpdate.getCity());
