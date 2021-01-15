@@ -1,5 +1,7 @@
 package com.codecool.flight_api_project.airline;
 
+import java.util.List;
+
 public interface AirlineService {
 
 
@@ -9,6 +11,7 @@ public interface AirlineService {
 
     Airline updateAirlineById(Long id,Airline airlineToUpdate);
 
+    List<Airline> getAllAirlines();
 
-
+    Airline findById(Long id);
 }
