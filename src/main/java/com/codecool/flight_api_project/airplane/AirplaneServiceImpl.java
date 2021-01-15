@@ -39,14 +39,14 @@ public class AirplaneServiceImpl implements AirplaneService {
 
     @Override
     public void deleteAirplaneByID(Long id) {
-        LOGGER.info("Deleting airplane with id:{}", id);
-        Airplane existingAirplane = airplaneRepository.findAirplaneById(id);
-
-        if (existingAirplane != null) {
-            airplaneRepository.delete(existingAirplane);
-        } else {
-            LOGGER.error("Airplane with id {} could not be found!", id);
-        }
+//        LOGGER.info("Deleting airplane with id:{}", id);
+//        Airplane existingAirplane = airplaneRepository.findAirplaneById(id);
+//
+//        if (existingAirplane != null) {
+            airplaneRepository.deleteById(id);
+//        } else {
+//            LOGGER.error("Airplane with id {} could not be found!", id);
+//        }
     }
 
     @Override

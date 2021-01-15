@@ -11,13 +11,10 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.util.AssertionErrors;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest
@@ -74,20 +71,34 @@ class AirplaneServiceImplTest {
     }
 
     @Test
+    @DisplayName("Delete an existing airplane successfully")
     void testDeleteAirplaneByID() {
+        Long airplaneId = 1L;
+        airplaneService.deleteAirplaneByID(airplaneId);
+        verify(airplaneRepository, times(1)).deleteById(airplaneId);
     }
 
 
     @Test
-    @DisplayName("Update an existing airport successfully")
+    @DisplayName("Update an existing airplane successfully")
     void testUpdateAirplaneByIdSuccessfully() {
         Airplane existingAirplane = new Airplane(1L, "Airbus", "A380", 853L, 1185);
-        Airplane newAirplane = new Airplane(1L, "Boeing", "737MAX", 180L, 800);
-
-        doReturn(existingAirplane).when(airplaneRepository).getOne(1L);
-        doReturn(newAirplane).when(airplaneRepository).save(existingAirplane);
-
+        Airplane updatedAirplane = new Airplane(1L, "Boeing", "737MAX", 180L, 800);
+        doReturn(existingAirplane).when(airplaneRepository).findAirplaneById(1L);
+        doReturn(updatedAirplane).when(airplaneRepository).save(existingAirplane);
         Airplane updateAirplane = airplaneService.updateAirplaneById(existingAirplane.getId(), existingAirplane);
         Assertions.assertEquals("Boeing", updateAirplane.getManufacturer());
+    }
+
+    @Test
+    @DisplayName("Fail to update an existing airplane")
+    public void testFailToUpdateExistingAirplane(){
+        Airplane mockAirplane = new Airplane(1L, "Airbus", "A380", 853L, 1185);
+
+        doReturn(null).when(airplaneRepository).findAirplaneById(1L);
+
+        Airplane updatedAirplane = airplaneService.updateAirplaneById(mockAirplane.getId(), mockAirplane);
+
+        AssertionErrors.assertTrue("Airplane should be null", updatedAirplane == null);
     }
 }
