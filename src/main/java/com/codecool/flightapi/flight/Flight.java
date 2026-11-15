@@ -2,7 +2,10 @@ package com.codecool.flightapi.flight;
 
 import com.codecool.flightapi.airline.Airline;
 import com.codecool.flightapi.airport.Airport;
+import com.codecool.flightapi.common.money.Money;
+import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -11,8 +14,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -32,17 +34,20 @@ public class Flight {
     @Column(name = "flight_id")
     private Long id;
 
-    @Column(name = "departure_date", nullable = false)
-    private LocalDate departureDate;
+    /** Point in time; shown in the departure airport's time zone. */
+    @Column(name = "departure_at", nullable = false)
+    private Instant departureAt;
 
-    @Column(name = "price", nullable = false)
-    private Long price;
+    /** Point in time; shown in the arrival airport's time zone. */
+    @Column(name = "arrival_at", nullable = false)
+    private Instant arrivalAt;
 
-    @Column(name = "departure_time", nullable = false)
-    private LocalTime departureTime;
-
-    @Column(name = "arrival_time", nullable = false)
-    private LocalTime arrivalTime;
+    @Embedded
+    @AttributeOverride(
+            name = "amount",
+            column = @Column(name = "price_amount", nullable = false, precision = 12, scale = 2))
+    @AttributeOverride(name = "currency", column = @Column(name = "price_currency", nullable = false, length = 3))
+    private Money price;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "departure_airport_id", nullable = false)

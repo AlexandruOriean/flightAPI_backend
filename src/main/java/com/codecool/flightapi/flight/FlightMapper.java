@@ -1,29 +1,52 @@
 package com.codecool.flightapi.flight;
 
 import com.codecool.flightapi.airline.AirlineMapper;
+import com.codecool.flightapi.airport.Airport;
 import com.codecool.flightapi.airport.AirportMapper;
 import com.codecool.flightapi.common.mapping.MappingConfig;
+import com.codecool.flightapi.common.money.MoneyMapper;
+import java.time.Instant;
+import java.time.OffsetDateTime;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 
-/** Airports and airline are resolved from their codes by {@link FlightService}, not by the mapper. */
+/**
+ * Times are stored as instants and shown in the time zone of the airport they refer to. Airports and
+ * airline are resolved from their codes by {@link FlightService}, not by the mapper.
+ */
 @Mapper(
         config = MappingConfig.class,
-        uses = {AirportMapper.class, AirlineMapper.class})
+        uses = {AirportMapper.class, AirlineMapper.class, MoneyMapper.class})
 public interface FlightMapper {
 
+    @Mapping(
+            target = "departure",
+            expression = "java(atAirport(flight.getDepartureAt(), flight.getDepartureAirport()))")
+    @Mapping(target = "arrival", expression = "java(atAirport(flight.getArrivalAt(), flight.getArrivalAirport()))")
     FlightResponse toResponse(Flight flight);
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "departureAt", source = "departure")
+    @Mapping(target = "arrivalAt", source = "arrival")
     @Mapping(target = "departureAirport", ignore = true)
     @Mapping(target = "arrivalAirport", ignore = true)
     @Mapping(target = "airline", ignore = true)
     Flight toEntity(FlightRequest request);
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "departureAt", source = "departure")
+    @Mapping(target = "arrivalAt", source = "arrival")
     @Mapping(target = "departureAirport", ignore = true)
     @Mapping(target = "arrivalAirport", ignore = true)
     @Mapping(target = "airline", ignore = true)
     void update(FlightRequest request, @MappingTarget Flight flight);
+
+    default OffsetDateTime atAirport(Instant instant, Airport airport) {
+        return instant.atZone(airport.getTimeZone()).toOffsetDateTime();
+    }
+
+    default Instant toInstant(OffsetDateTime dateTime) {
+        return dateTime == null ? null : dateTime.toInstant();
+    }
 }

@@ -16,8 +16,15 @@ import com.codecool.flightapi.airport.AirportService;
 import com.codecool.flightapi.city.City;
 import com.codecool.flightapi.city.CityMapperImpl;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
+import com.codecool.flightapi.common.money.Money;
+import com.codecool.flightapi.common.money.MoneyDto;
+import com.codecool.flightapi.common.money.MoneyMapperImpl;
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.util.Currency;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +39,11 @@ class FlightServiceTest {
 
     private static final LocalDate DATE = LocalDate.of(2021, 1, 15);
 
+    /** The UTC window that contains every local date {@link #DATE}: from UTC+14:00 to UTC-12:00. */
+    private static final Instant WINDOW_START = Instant.parse("2021-01-14T10:00:00Z");
+
+    private static final Instant WINDOW_END = Instant.parse("2021-01-16T12:00:00Z");
+
     @Mock
     private FlightRepository flightRepository;
 
@@ -43,47 +55,54 @@ class FlightServiceTest {
 
     private FlightService flightService;
 
-    private final Airport otopeni = new Airport(1L, "OTP", "Otopeni", new City(12L, "Bucuresti"));
-    private final Airport heathrow = new Airport(2L, "LHR", "Heathrow", new City(21L, "London"));
+    private final Airport otopeni =
+            new Airport(1L, "OTP", "Otopeni", new City(12L, "Bucuresti"), ZoneId.of("Europe/Bucharest"));
+    private final Airport heathrow =
+            new Airport(2L, "LHR", "Heathrow", new City(21L, "London"), ZoneId.of("Europe/London"));
     private final Airline tarom = new Airline(10000L, "Tarom", "ROT");
 
     @BeforeEach
     void setUp() {
-        FlightMapper mapper =
-                new FlightMapperImpl(new AirportMapperImpl(new CityMapperImpl()), new AirlineMapperImpl());
+        FlightMapper mapper = new FlightMapperImpl(
+                new AirportMapperImpl(new CityMapperImpl()), new AirlineMapperImpl(), new MoneyMapperImpl());
         flightService = new FlightService(flightRepository, mapper, airportService, airlineService);
     }
 
     @Test
-    void searchReturnsTheFlightsFoundForRouteAndDate() {
-        List<Flight> flights = List.of(
-                flight(1L, LocalTime.of(9, 20), LocalTime.of(11, 20)),
-                flight(2L, LocalTime.of(10, 20), LocalTime.of(12, 20)),
-                flight(3L, LocalTime.of(10, 20), LocalTime.of(13, 20)));
-        when(flightRepository.search("OTOPENI", "%otopeni%", "HEATHROW", "%heathrow%", DATE))
-                .thenReturn(flights);
+    void searchShowsTimesInTheLocalTimeOfEachAirport() {
+        when(flightRepository.search("OTOPENI", "%otopeni%", "HEATHROW", "%heathrow%", WINDOW_START, WINDOW_END))
+                .thenReturn(List.of(flight(1L, "2021-01-15T07:20:00Z", "2021-01-15T10:50:00Z")));
 
-        assertThat(flightService.search("Otopeni", "Heathrow", DATE)).hasSize(3).allSatisfy(flight -> {
-            assertThat(flight.departureAirport().iataCode()).isEqualTo("OTP");
-            assertThat(flight.arrivalAirport().city().cityName()).isEqualTo("London");
-            assertThat(flight.airline().icaoCode()).isEqualTo("ROT");
-            assertThat(flight.departureDate()).isEqualTo(DATE);
-        });
+        assertThat(flightService.search("Otopeni", "Heathrow", DATE))
+                .singleElement()
+                .satisfies(flight -> {
+                    assertThat(flight.departure()).isEqualTo(OffsetDateTime.parse("2021-01-15T09:20:00+02:00"));
+                    assertThat(flight.arrival()).isEqualTo(OffsetDateTime.parse("2021-01-15T10:50:00Z"));
+                    assertThat(flight.price()).isEqualTo(new MoneyDto(new BigDecimal("100.00"), "RON"));
+                    assertThat(flight.departureAirport().timeZone()).isEqualTo("Europe/Bucharest");
+                    assertThat(flight.airline().icaoCode()).isEqualTo("ROT");
+                });
     }
 
     @Test
-    void searchReturnsEmptyListWhenNothingMatches() {
-        when(flightRepository.search("OTOPENI", "%otopeni%", "HEATHROW", "%heathrow%", DATE))
-                .thenReturn(List.of());
+    void searchUsesTheLocalDateAtTheDepartureAirport() {
+        when(flightRepository.search("OTP", "%otp%", "LHR", "%lhr%", WINDOW_START, WINDOW_END))
+                .thenReturn(List.of(
+                        // 23:30 UTC on the 14th is already 01:30 on the 15th in Bucharest
+                        flight(1L, "2021-01-14T23:30:00Z", "2021-01-15T03:00:00Z"),
+                        // 22:30 UTC on the 15th is 00:30 on the 16th in Bucharest
+                        flight(2L, "2021-01-15T22:30:00Z", "2021-01-16T02:00:00Z")));
 
-        assertThat(flightService.search("Otopeni", "Heathrow", DATE)).isEmpty();
+        assertThat(flightService.search("OTP", "LHR", DATE))
+                .extracting(FlightResponse::id)
+                .containsExactly(1L);
     }
 
     @Test
     void searchEscapesLikeWildcardsAndNormalizesTerms() {
         flightService.search(" 50%_off\\ ", "lhr", DATE);
 
-        verify(flightRepository).search("50%_OFF\\", "%50\\%\\_off\\\\%", "LHR", "%lhr%", DATE);
+        verify(flightRepository).search("50%_OFF\\", "%50\\%\\_off\\\\%", "LHR", "%lhr%", WINDOW_START, WINDOW_END);
     }
 
     @Test
@@ -107,7 +126,9 @@ class FlightServiceTest {
         assertThat(created.departureAirport().id()).isEqualTo(1L);
         assertThat(created.arrivalAirport().id()).isEqualTo(2L);
         assertThat(created.airline().id()).isEqualTo(10000L);
-        assertThat(created.price()).isEqualTo(250L);
+        assertThat(created.price()).isEqualTo(new MoneyDto(new BigDecimal("250.50"), "EUR"));
+        // stored as an instant, shown in the departure airport's zone whatever offset the client sent
+        assertThat(created.departure()).isEqualTo(OffsetDateTime.parse("2021-01-16T07:00:00+02:00"));
     }
 
     @Test
@@ -121,8 +142,8 @@ class FlightServiceTest {
     }
 
     @Test
-    void updateReplacesScheduleRouteAndPrice() {
-        Flight existing = flight(1L, LocalTime.of(9, 20), LocalTime.of(11, 20));
+    void updateReplacesTimesRouteAndPrice() {
+        Flight existing = flight(1L, "2021-01-15T07:20:00Z", "2021-01-15T10:50:00Z");
         when(flightRepository.findById(1L)).thenReturn(Optional.of(existing));
         when(airportService.getByIataCode("LHR")).thenReturn(heathrow);
         when(airportService.getByIataCode("OTP")).thenReturn(otopeni);
@@ -131,19 +152,32 @@ class FlightServiceTest {
         FlightResponse updated = flightService.update(1L, request("LHR", "OTP"));
 
         assertThat(updated.id()).isEqualTo(1L);
-        assertThat(updated.departureDate()).isEqualTo(DATE.plusDays(1));
-        assertThat(updated.departureTime()).isEqualTo(LocalTime.of(7, 0));
-        assertThat(updated.arrivalTime()).isEqualTo(LocalTime.of(9, 0));
-        assertThat(updated.price()).isEqualTo(250L);
+        assertThat(existing.getDepartureAt()).isEqualTo(Instant.parse("2021-01-16T05:00:00Z"));
+        assertThat(existing.getArrivalAt()).isEqualTo(Instant.parse("2021-01-16T08:30:00Z"));
+        assertThat(updated.departure()).isEqualTo(OffsetDateTime.parse("2021-01-16T05:00:00Z"));
+        assertThat(updated.price()).isEqualTo(new MoneyDto(new BigDecimal("250.50"), "EUR"));
         assertThat(existing.getDepartureAirport()).isEqualTo(heathrow);
         assertThat(existing.getArrivalAirport()).isEqualTo(otopeni);
     }
 
     private static FlightRequest request(String from, String to) {
-        return new FlightRequest(from, to, "ROT", DATE.plusDays(1), LocalTime.of(7, 0), LocalTime.of(9, 0), 250L);
+        return new FlightRequest(
+                from,
+                to,
+                "ROT",
+                OffsetDateTime.parse("2021-01-16T06:00:00+01:00"),
+                OffsetDateTime.parse("2021-01-16T08:30:00Z"),
+                new MoneyDto(new BigDecimal("250.50"), "EUR"));
     }
 
-    private Flight flight(Long id, LocalTime departure, LocalTime arrival) {
-        return new Flight(id, DATE, 100L, departure, arrival, otopeni, heathrow, tarom);
+    private Flight flight(Long id, String departure, String arrival) {
+        return new Flight(
+                id,
+                Instant.parse(departure),
+                Instant.parse(arrival),
+                new Money(new BigDecimal("100.00"), Currency.getInstance("RON")),
+                otopeni,
+                heathrow,
+                tarom);
     }
 }
