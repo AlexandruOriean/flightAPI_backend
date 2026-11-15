@@ -575,7 +575,7 @@
 
         <!--
           OWASP dependency vulnerability scan (runs in CI, see .github/workflows/security-scan.yml).
-          Locally: NVD_API_KEY=... ./mvnw -Pprod,security-scan -DskipTests verify
+          Locally: ./mvnw -Pprod,security-scan -DskipTests verify (the first run downloads ~250 MB of NVD data)
           Report: target/dependency-check-report.html
         -->
         <profile>
@@ -587,8 +587,11 @@
                         <artifactId>dependency-check-maven</artifactId>
                         <version>${dependency-check-maven.version}</version>
                         <configuration>
-                            <nvdApiKeyEnvironmentVariable>NVD_API_KEY</nvdApiKeyEnvironmentVariable>
-                            <nvdMaxRetryCount>20</nvdMaxRetryCount>
+                            <!--
+                              NVD's static JSON feeds (one file per year plus recent changes) instead of the paged
+                              NVD API, which kept answering 503 during full downloads. No API key needed.
+                            -->
+                            <nvdDatafeedUrl>https://nvd.nist.gov/feeds/json/cve/2.0/nvdcve-2.0-{0}.json.gz</nvdDatafeedUrl>
                             <!-- Stable location so CI can cache the (large) NVD database between runs -->
                             <dataDirectory>${user.home}/.dependency-check/data</dataDirectory>
                             <failBuildOnCVSS>7</failBuildOnCVSS>
