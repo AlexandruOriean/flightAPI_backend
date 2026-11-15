@@ -576,6 +576,7 @@
                         <version>${dependency-check-maven.version}</version>
                         <configuration>
                             <nvdApiKeyEnvironmentVariable>NVD_API_KEY</nvdApiKeyEnvironmentVariable>
+                            <nvdMaxRetryCount>20</nvdMaxRetryCount>
                             <!-- Stable location so CI can cache the (large) NVD database between runs -->
                             <dataDirectory>${user.home}/.dependency-check/data</dataDirectory>
                             <failBuildOnCVSS>7</failBuildOnCVSS>
