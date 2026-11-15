@@ -51,7 +51,7 @@ class AuthServiceTest {
                 authenticationManager,
                 jwtTokenService,
                 refreshTokenService,
-                new RefreshTokenProperties(Duration.ofDays(7)));
+                new RefreshTokenProperties(Duration.ofDays(7), Duration.ofSeconds(10)));
     }
 
     @Test

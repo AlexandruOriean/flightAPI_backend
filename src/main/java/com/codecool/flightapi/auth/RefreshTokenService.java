@@ -9,6 +9,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
@@ -55,8 +56,11 @@ public class RefreshTokenService {
     /**
      * Exchanges a refresh token for the next one, and returns the account with its current roles.
      *
-     * @throws InvalidRefreshTokenException if the token is unknown, expired, revoked or already used; a used
-     *     token also revokes its family
+     * <p>A token used again within {@link RefreshTokenProperties#reuseGrace} of its first use (two tabs refreshing
+     * at once) gets its own next token in the same family.
+     *
+     * @throws InvalidRefreshTokenException if the token is unknown, expired, revoked or was used before the grace
+     *     period; reuse after the grace period also revokes its family
      */
     @Transactional(noRollbackFor = InvalidRefreshTokenException.class)
     public Rotation rotate(String tokenValue) {
@@ -70,6 +74,12 @@ public class RefreshTokenService {
         User user = token.getUser();
         UserPrincipal principal = UserPrincipal.build(user);
         if (token.getUsedAt() != null || refreshTokenRepository.markUsed(token.getId(), now) == 0) {
+            // markUsed found it used: a concurrent refresh marked it a moment ago
+            Instant usedAt = token.getUsedAt() != null ? token.getUsedAt() : now;
+            if (withinReuseGrace(usedAt, now)) {
+                log.info("Refresh token reused within the grace period (family {})", token.getFamilyId());
+                return new Rotation(principal, issue(user, token.getFamilyId()));
+            }
             log.warn("Refresh token reused; revoking its family {} (user id {})", token.getFamilyId(), user.getId());
             refreshTokenRepository.revokeFamily(token.getFamilyId(), now);
             throw new InvalidRefreshTokenException();
@@ -91,6 +101,11 @@ public class RefreshTokenService {
     public void deleteExpired() {
         int deleted = refreshTokenRepository.deleteExpired(clock.instant());
         log.info("Deleted {} expired refresh tokens", deleted);
+    }
+
+    private boolean withinReuseGrace(Instant usedAt, Instant now) {
+        Duration grace = properties.reuseGrace();
+        return !grace.isZero() && !now.isAfter(usedAt.plus(grace));
     }
 
     private IssuedToken issue(User user, UUID familyId) {
