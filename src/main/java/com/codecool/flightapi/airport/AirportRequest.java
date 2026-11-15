@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.time.ZoneId;
+import java.util.Set;
 
 /**
  * Body of {@code POST/PUT /api/v1/airports}.
@@ -20,7 +21,13 @@ public record AirportRequest(
         @NotBlank @Size(max = 255) String cityName,
         @NotBlank @Size(max = 64) String timeZone) {
 
+    /**
+     * IANA zone ids known to the JDK, copied once rather than on every validation. Not {@code ZoneId.of}: it
+     * would also accept offsets such as {@code +02:00}, which have no daylight-saving rules.
+     */
+    private static final Set<String> IANA_ZONE_IDS = Set.copyOf(ZoneId.getAvailableZoneIds());
+
     @AssertTrue(message = "must be an IANA time zone, e.g. Europe/Bucharest") public boolean isKnownTimeZone() {
-        return timeZone == null || ZoneId.getAvailableZoneIds().contains(timeZone);
+        return timeZone == null || IANA_ZONE_IDS.contains(timeZone);
     }
 }
