@@ -2,7 +2,6 @@ package com.codecool.flightapi.auth;
 
 import com.codecool.flightapi.common.error.ResourceAlreadyExistsException;
 import com.codecool.flightapi.user.AdminAccountProperties;
-import com.codecool.flightapi.user.Role;
 import com.codecool.flightapi.user.RoleName;
 import com.codecool.flightapi.user.RoleRepository;
 import com.codecool.flightapi.user.User;
@@ -45,12 +44,6 @@ public class RegistrationService {
                 username,
                 passwordEncoder.encode(request.password()),
                 email,
-                Set.of(findRole(RoleName.ROLE_USER))));
-    }
-
-    private Role findRole(RoleName name) {
-        return roleRepository
-                .findByName(name)
-                .orElseThrow(() -> new IllegalStateException("Role " + name + " is missing from the database"));
+                Set.of(roleRepository.getByName(RoleName.ROLE_USER))));
     }
 }

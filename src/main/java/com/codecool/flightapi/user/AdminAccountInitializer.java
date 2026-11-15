@@ -66,7 +66,7 @@ public class AdminAccountInitializer implements ApplicationRunner {
                 admin.username(),
                 passwordEncoder.encode(admin.password()),
                 admin.email(),
-                Set.of(findRole(RoleName.ROLE_USER), findRole(RoleName.ROLE_ADMIN))));
+                Set.of(roleRepository.getByName(RoleName.ROLE_USER), roleRepository.getByName(RoleName.ROLE_ADMIN))));
         log.info("Created admin account '{}'", admin.username());
     }
 
@@ -78,11 +78,5 @@ public class AdminAccountInitializer implements ApplicationRunner {
                     + " Choose another app.admin.username, or verify that account and grant the role in the database");
         }
         log.info("Admin account '{}' already exists", user.getUsername());
-    }
-
-    private Role findRole(RoleName name) {
-        return roleRepository
-                .findByName(name)
-                .orElseThrow(() -> new IllegalStateException("Role " + name + " is missing from the database"));
     }
 }

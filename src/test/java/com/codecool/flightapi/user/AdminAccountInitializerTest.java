@@ -35,8 +35,8 @@ class AdminAccountInitializerTest {
     }
 
     private void rolesExist() {
-        when(roleRepository.findByName(RoleName.ROLE_USER)).thenReturn(Optional.of(userRole));
-        when(roleRepository.findByName(RoleName.ROLE_ADMIN)).thenReturn(Optional.of(adminRole));
+        when(roleRepository.getByName(RoleName.ROLE_USER)).thenReturn(userRole);
+        when(roleRepository.getByName(RoleName.ROLE_ADMIN)).thenReturn(adminRole);
     }
 
     @Test
