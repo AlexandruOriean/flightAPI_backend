@@ -1,6 +1,7 @@
 package com.codecool.flightapi.auth;
 
 import com.codecool.flightapi.common.error.ResourceAlreadyExistsException;
+import com.codecool.flightapi.user.AdminAccountProperties;
 import com.codecool.flightapi.user.Role;
 import com.codecool.flightapi.user.RoleName;
 import com.codecool.flightapi.user.RoleRepository;
@@ -19,24 +20,28 @@ public class RegistrationService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AdminAccountProperties admin;
 
     /**
      * Registers a new user with {@link RoleName#ROLE_USER} only. Clients cannot choose their roles.
+     * Username and e-mail are stored in lower case; the configured admin username cannot be registered.
      *
      * @throws ResourceAlreadyExistsException if the username or e-mail is already taken
      */
     @Transactional
     public void register(RegisterRequest request) {
-        if (userRepository.existsByUsername(request.username())) {
+        String username = User.normalize(request.username());
+        String email = User.normalize(request.email());
+        if (admin.isReserved(username) || userRepository.existsByUsername(username)) {
             throw new ResourceAlreadyExistsException("Username is already taken.");
         }
-        if (userRepository.existsByEmail(request.email())) {
+        if (userRepository.existsByEmail(email)) {
             throw new ResourceAlreadyExistsException("E-mail is already registered.");
         }
 
         User user = new User();
-        user.setUsername(request.username());
-        user.setEmail(request.email());
+        user.setUsername(username);
+        user.setEmail(email);
         user.setPassword(passwordEncoder.encode(request.password()));
         user.setName(request.name());
         user.setRole(Set.of(findRole(RoleName.ROLE_USER)));

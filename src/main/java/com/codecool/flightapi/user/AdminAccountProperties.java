@@ -18,6 +18,14 @@ public record AdminAccountProperties(String username, String email, String passw
         return StringUtils.hasText(password);
     }
 
+    /**
+     * Whether {@code username} is the admin's (ignoring case) and therefore closed to self-registration,
+     * also while no admin is provisioned yet: whoever held that name would otherwise be taken for the admin.
+     */
+    public boolean isReserved(String username) {
+        return this.username != null && this.username.equalsIgnoreCase(username);
+    }
+
     @Override
     public String toString() {
         // never expose the password, e.g. in logs or actuator output
