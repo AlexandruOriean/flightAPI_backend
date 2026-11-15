@@ -1,6 +1,7 @@
 package com.codecool.flightapi.user;
 
 import java.util.Set;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -23,6 +24,7 @@ import org.springframework.util.StringUtils;
  * </ul>
  */
 @Component
+@RequiredArgsConstructor
 public class AdminAccountInitializer implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(AdminAccountInitializer.class);
@@ -31,17 +33,6 @@ public class AdminAccountInitializer implements ApplicationRunner {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
-
-    public AdminAccountInitializer(
-            AdminAccountProperties admin,
-            UserRepository userRepository,
-            RoleRepository roleRepository,
-            PasswordEncoder passwordEncoder) {
-        this.admin = admin;
-        this.userRepository = userRepository;
-        this.roleRepository = roleRepository;
-        this.passwordEncoder = passwordEncoder;
-    }
 
     @Override
     @Transactional

@@ -1,6 +1,7 @@
 package com.codecool.flightapi.security;
 
 import java.util.stream.Stream;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -23,6 +24,7 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
 
     /**
@@ -36,15 +38,6 @@ public class SecurityConfig {
     private final ProblemDetailAuthenticationEntryPoint unauthorizedHandler;
     private final ProblemDetailAccessDeniedHandler accessDeniedHandler;
     private final JwtAuthenticationConverter jwtAuthenticationConverter;
-
-    public SecurityConfig(
-            ProblemDetailAuthenticationEntryPoint unauthorizedHandler,
-            ProblemDetailAccessDeniedHandler accessDeniedHandler,
-            JwtAuthenticationConverter jwtAuthenticationConverter) {
-        this.unauthorizedHandler = unauthorizedHandler;
-        this.accessDeniedHandler = accessDeniedHandler;
-        this.jwtAuthenticationConverter = jwtAuthenticationConverter;
-    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
