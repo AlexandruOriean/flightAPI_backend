@@ -136,6 +136,52 @@ class AuthenticationFlowIT {
     }
 
     @Test
+    @DisplayName("SECURITY: usernames and e-mails are unique regardless of case")
+    void caseVariantOfTakenUsernameOrEmailIsConflict() throws Exception {
+        mockMvc.perform(post("/users/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registration("IT-User", "case-variant@example.com", PASSWORD)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("Username is already taken."));
+        mockMvc.perform(post("/users/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registration("it-other", "IT-User@Example.com", PASSWORD)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("E-mail is already registered."));
+    }
+
+    @Test
+    @DisplayName("SECURITY: the admin username cannot be self-registered, in any case")
+    void adminUsernameCannotBeRegistered() throws Exception {
+        mockMvc.perform(post("/users/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registration("It-Admin", "not-the-admin@example.com", PASSWORD)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("Username is already taken."));
+    }
+
+    @Test
+    @DisplayName("login ignores the case of the username")
+    void loginIgnoresUsernameCase() throws Exception {
+        mockMvc.perform(post("/users/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(credentials("IT-User", PASSWORD)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username").value("it-user"));
+    }
+
+    @Test
+    @DisplayName("a password over BCrypt's 72-byte limit is rejected with 400, not a server error")
+    void passwordOverBcryptByteLimitIsBadRequest() throws Exception {
+        // 40 characters, 80 bytes in UTF-8
+        mockMvc.perform(post("/users/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registration("it-multibyte", "it-multibyte@example.com", "ă".repeat(40))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[*].field").value(contains("passwordWithinByteLimit")));
+    }
+
+    @Test
     @DisplayName("registration with invalid fields is rejected with 400 problem+json listing them")
     void invalidRegistrationIsBadRequest() throws Exception {
         mockMvc.perform(post("/users/register")
@@ -259,6 +305,11 @@ class AuthenticationFlowIT {
                         .content("{\"username\":\"%s\",\"name\":\"IT\",\"email\":\"%s\",\"password\":\"%s\"%s}"
                                 .formatted(username, email, PASSWORD, extraJson)))
                 .andExpect(status().isCreated());
+    }
+
+    private static String registration(String username, String email, String password) {
+        return "{\"username\":\"%s\",\"name\":\"IT\",\"email\":\"%s\",\"password\":\"%s\"}"
+                .formatted(username, email, password);
     }
 
     private String login(String username, String password) throws Exception {

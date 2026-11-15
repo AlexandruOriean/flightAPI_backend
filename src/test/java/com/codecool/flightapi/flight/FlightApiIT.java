@@ -56,6 +56,8 @@ class FlightApiIT {
                 .andExpect(jsonPath("$.arrival").value("2020-11-01T14:45:00+02:00"))
                 .andExpect(jsonPath("$.price.amount").value(35.0))
                 .andExpect(jsonPath("$.price.currency").value("GBP"))
+                // validation helpers of the DTO are not part of the JSON
+                .andExpect(jsonPath("$.price.knownCurrency").doesNotExist())
                 .andExpect(jsonPath("$.departureAirport.iataCode").value("LHR"))
                 .andExpect(jsonPath("$.departureAirport.timeZone").value("Europe/London"))
                 .andExpect(jsonPath("$.departureAirport.city.cityName").value("London"))
