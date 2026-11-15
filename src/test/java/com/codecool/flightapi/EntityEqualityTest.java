@@ -18,11 +18,50 @@ import java.time.ZoneId;
 import java.util.Currency;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 /** Entities are equal by database id only, and keep their hash code when their fields change. */
 class EntityEqualityTest {
+
+    /** Every entity, built with a given id (Role ids are ints). */
+    static Stream<Arguments> entities() {
+        return Stream.of(
+                entity("City", id -> new City(id, "London")),
+                entity("Airline", id -> new Airline(id, "Tarom", "ROT")),
+                entity("AircraftType", id -> new AircraftType(id, "A320", "Airbus", "A320", 840, 180)),
+                entity("Airport", id -> airport(id, "OTP")),
+                entity("Flight", id -> flight(id, Instant.parse("2026-12-01T07:30:00Z"))),
+                entity("Role", id -> new Role(id == null ? null : id.intValue(), RoleName.ROLE_USER)),
+                entity("User", id -> user(id, "ana")));
+    }
+
+    private static Arguments entity(String name, Function<Long, Object> withId) {
+        return Arguments.of(name, withId);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("entities")
+    @DisplayName("identity contract: equal to itself, by id only, never to an unsaved copy, null or another type")
+    void identityContract(String name, Function<Long, Object> withId) {
+        Object saved = withId.apply(1L);
+        Object unsaved = withId.apply(null);
+        // AssertJ short-circuits on ==, so the same-instance case calls equals directly
+        Object sameSaved = saved;
+        Object sameUnsaved = unsaved;
+
+        assertThat(saved.equals(sameSaved)).isTrue();
+        assertThat(unsaved.equals(sameUnsaved)).isTrue();
+        assertThat(saved).isEqualTo(withId.apply(1L)).hasSameHashCodeAs(withId.apply(2L));
+        assertThat(saved).isNotEqualTo(withId.apply(2L)).isNotEqualTo(unsaved).isNotEqualTo(null);
+        assertThat(saved).isNotEqualTo(new Object());
+        assertThat(unsaved).isNotEqualTo(saved).isNotEqualTo(withId.apply(null));
+    }
 
     @Test
     @DisplayName("same id -> equal, whatever the other fields")

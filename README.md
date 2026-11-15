@@ -131,8 +131,10 @@ by its ICAO type designator (`A320`, `B738`); an aircraft type cannot be deleted
 
 - Integration tests run against H2; `PostgresMigrationIT` also runs every migration on a real PostgreSQL via
   Testcontainers and is skipped when Docker is not available.
-- The build fails below 85 % line coverage (JaCoCo, unit + integration tests merged); the report is in
-  `target/site/jacoco/`.
+- The build fails below 90 % line or 85 % branch coverage (JaCoCo, unit + integration tests merged,
+  MapStruct-generated mappers excluded); the report is in `target/site/jacoco/`.
+- Controllers have `@WebMvcTest` slices (status codes, validation, problem+json); access rules and the
+  full auth flow are tested against the whole application (`AccessRulesIT`, `AuthenticationFlowIT`).
 - The compiler runs Error Prone with warnings as errors.
 
 ## Deploy
