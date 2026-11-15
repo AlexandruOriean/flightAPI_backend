@@ -1,7 +1,9 @@
 package com.codecool.flightapi.security;
 
+import io.github.bucket4j.TimeMeter;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -18,8 +20,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.session.DisableEncodeUrlFilter;
 import org.springframework.security.web.util.matcher.AndRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.web.servlet.HandlerExceptionResolver;
 
 @Configuration
 @EnableWebSecurity
@@ -38,6 +42,9 @@ public class SecurityConfig {
     private final ProblemDetailAuthenticationEntryPoint unauthorizedHandler;
     private final ProblemDetailAccessDeniedHandler accessDeniedHandler;
     private final JwtAuthenticationConverter jwtAuthenticationConverter;
+    private final RateLimitProperties rateLimitProperties;
+
+    @Qualifier("handlerExceptionResolver") private final HandlerExceptionResolver exceptionResolver;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -57,7 +64,7 @@ public class SecurityConfig {
      * of the rules below, otherwise it is rejected. Rules are evaluated top to bottom.
      *
      * <ul>
-     *   <li>Public: login/registration, error page, health/info probes, and the flight search and
+     *   <li>Public: login/registration (rate-limited per client IP, see {@link AuthRateLimitFilter}), error page, health/info probes, and the flight search and
      *       flight details the frontend shows before login.
      *   <li>Any signed-in user: every other {@code GET /api/v1/**}.
      *   <li>ADMIN: the full flight list and every write ({@code POST/PUT/DELETE /api/v1/**}).
@@ -68,7 +75,11 @@ public class SecurityConfig {
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http.cors(Customizer.withDefaults())
+        // first in the chain: rejected attempts cost neither JSON parsing nor a password hash
+        http.addFilterBefore(
+                        new AuthRateLimitFilter(rateLimitProperties, exceptionResolver, TimeMeter.SYSTEM_NANOTIME),
+                        DisableEncodeUrlFilter.class)
+                .cors(Customizer.withDefaults())
                 // stateless bearer-token API: no session, so no CSRF token to protect
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

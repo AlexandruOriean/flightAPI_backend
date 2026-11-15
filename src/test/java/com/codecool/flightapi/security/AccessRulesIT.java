@@ -37,6 +37,10 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
             "app.admin.username=rules-admin",
             "app.admin.email=rules-admin@example.com",
             "app.admin.password=" + AccessRulesIT.ADMIN_PASSWORD,
+            // every request comes from 127.0.0.1 and these tests log in and register many times;
+            // the limits themselves are tested in RateLimitIT
+            "app.rate-limit.login.requests=1000",
+            "app.rate-limit.register.requests=1000",
             "app.cors.allowed-origins=" + AccessRulesIT.FRONTEND_ORIGIN
         })
 @AutoConfigureMockMvc

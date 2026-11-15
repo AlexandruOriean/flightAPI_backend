@@ -44,7 +44,11 @@ import org.springframework.test.web.servlet.MockMvc;
             // The only way to get an admin: provisioned from configuration at startup
             "app.admin.username=it-admin",
             "app.admin.email=it-admin@example.com",
-            "app.admin.password=" + AuthenticationFlowIT.ADMIN_PASSWORD
+            "app.admin.password=" + AuthenticationFlowIT.ADMIN_PASSWORD,
+            // every request comes from 127.0.0.1 and these tests log in and register many times;
+            // the limits themselves are tested in RateLimitIT
+            "app.rate-limit.login.requests=1000",
+            "app.rate-limit.register.requests=1000"
         })
 @AutoConfigureMockMvc
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
