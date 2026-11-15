@@ -104,9 +104,13 @@ Full, always-current documentation: Swagger UI in the `dev` profile. Errors are
    and gets its own new pair; using it later ends the login, as it may have been stolen.
 5. **Log out**: `POST /api/v1/auth/logout` with `{"refreshToken": "..."}` → `204`; the refresh token stops
    working, the access token expires within its lifetime.
+6. **Change the password** (any signed-in user): `POST /api/v1/auth/password` with
+   `{"currentPassword": "...", "newPassword": "..."}` and the bearer token → `200` with a new login, same shape
+   as login. Every other login of the account ends; `400` if the current password is wrong. New passwords follow
+   the registration rules; an admin's needs at least 12 characters.
 
-Login and registration are rate-limited per client IP; over the limit the API answers `429` with
-`Retry-After`.
+Login, registration and password changes are rate-limited per client IP (`app.rate-limit.password.*`: 10 per
+hour); over the limit the API answers `429` with `Retry-After`.
 
 ### Endpoints
 
@@ -175,6 +179,24 @@ WHERE role_id = (SELECT id FROM roles WHERE name = 'ROLE_ADMIN')
 The same list by hand: `SELECT u.username FROM users u JOIN user_roles ur ON ur.user_id = u.id JOIN roles r
 ON r.id = ur.role_id WHERE r.name = 'ROLE_ADMIN';`. Tokens already issued to such an account keep their roles
 until they expire (access tokens: 15 minutes); its refresh tokens pick up the change at the next refresh.
+
+**Rotating the admin password.** `APP_ADMIN_PASSWORD` is only used to *create* the admin account; changing it
+later has no effect on an existing admin. Rotate by logging in as the admin and calling
+`POST /api/v1/auth/password` (see [Authentication](#authentication)), then update `APP_ADMIN_PASSWORD` to the
+same value so a fresh database gets it too.
+
+**Forgotten admin password.** Store a new BCrypt hash directly and end the admin's existing logins, then
+log in with the new password:
+
+```sh
+htpasswd -bnBC 12 "" 'the-new-password' | tr -d ':\n'    # prints $2y$12$...
+```
+
+```sql
+UPDATE users SET password = '$2y$12$...' WHERE username = 'admin';
+UPDATE refresh_token SET revoked_at = CURRENT_TIMESTAMP
+WHERE revoked_at IS NULL AND user_id = (SELECT id FROM users WHERE username = 'admin');
+```
 
 ## CI and code quality
 

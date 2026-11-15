@@ -12,11 +12,14 @@ import org.springframework.validation.annotation.Validated;
  *
  * @param login {@code POST /api/v1/auth/login}
  * @param register {@code POST /api/v1/auth/register}
+ * @param password {@code POST /api/v1/auth/password}
  */
 @ConfigurationProperties("app.rate-limit")
 @Validated
 public record RateLimitProperties(
-        @NotNull @Valid Limit login, @NotNull @Valid Limit register) {
+        @NotNull @Valid Limit login,
+        @NotNull @Valid Limit register,
+        @NotNull @Valid Limit password) {
 
     /**
      * At most {@code requests} attempts per {@code period}; used-up attempts come back gradually over the period.

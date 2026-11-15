@@ -182,6 +182,38 @@ class AuthControllerTest {
     }
 
     @Test
+    @DisplayName("POST /password -> 200 with a new login for the signed-in user")
+    void changePassword() throws Exception {
+        when(authService.changePassword("user", new ChangePasswordRequest("old-secret", "new-secret")))
+                .thenReturn(tokens);
+
+        mockMvc.perform(post("/api/v1/auth/password")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currentPassword\":\"old-secret\",\"newPassword\":\"new-secret\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.refreshToken").value("refresh"));
+    }
+
+    @Test
+    @DisplayName("POST /password with a too short or unchanged new password -> 400")
+    void invalidPasswordChange() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/password")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currentPassword\":\"old-secret\",\"newPassword\":\"short\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("newPassword"));
+        mockMvc.perform(post("/api/v1/auth/password")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currentPassword\":\"same-secret\",\"newPassword\":\"same-secret\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("newPasswordDifferent"));
+        verifyNoInteractions(authService);
+    }
+
+    @Test
     @DisplayName("POST /logout -> 204, revokes the refresh token and expires the legacy cookie")
     void logout() throws Exception {
         mockMvc.perform(post("/api/v1/auth/logout")
