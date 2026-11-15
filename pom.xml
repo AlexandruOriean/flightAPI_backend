@@ -50,6 +50,7 @@
         <palantir-java-format.version>2.103.0</palantir-java-format.version>
         <error-prone.version>2.52.0</error-prone.version>
         <dependency-check-maven.version>13.0.0</dependency-check-maven.version>
+        <sonar-maven-plugin.version>5.8.0.7211</sonar-maven-plugin.version>
 
         <!-- Default for @{argLine}; JaCoCo fills it in, this keeps tests runnable when JaCoCo is skipped -->
         <argLine/>
@@ -57,6 +58,16 @@
         <!-- Coverage quality gate (ratchet this up as tests are added) -->
         <jacoco.merged.file>${project.build.directory}/jacoco-merged.exec</jacoco.merged.file>
         <jacoco.min.line.coverage>0.60</jacoco.min.line.coverage>
+
+        <!--
+          SonarQube Cloud (https://sonarcloud.io). Analysis runs in CI after `verify`:
+          ./mvnw -B -Pprod sonar:sonar (token from the SONAR_TOKEN environment variable).
+        -->
+        <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+        <sonar.organization>alexandruoriean</sonar.organization>
+        <sonar.projectKey>AlexandruOriean_flightAPI_backend</sonar.projectKey>
+        <!-- Merged unit + integration coverage written by the jacoco `report` execution -->
+        <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
 
         <!-- OCI image (./mvnw -Pprod spring-boot:build-image); repository name must be lowercase -->
         <container.image.repository>ghcr.io/alexandruoriean/flight-api</container.image.repository>
@@ -171,6 +182,16 @@
     </dependencies>
 
     <build>
+        <pluginManagement>
+            <plugins>
+                <!-- Not bound to a phase; invoked explicitly as `sonar:sonar` -->
+                <plugin>
+                    <groupId>org.sonarsource.scanner.maven</groupId>
+                    <artifactId>sonar-maven-plugin</artifactId>
+                    <version>${sonar-maven-plugin.version}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <!-- Fail fast on an unsupported JDK / Maven, or a sloppy POM -->
             <plugin>
