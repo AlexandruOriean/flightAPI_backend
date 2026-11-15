@@ -1,5 +1,6 @@
 package com.codecool.flightapi.auth;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -14,6 +15,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import java.util.Base64;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -64,6 +67,16 @@ class AuthenticationFlowIT {
     }
 
     @Test
+    @DisplayName("login with an over-long username or password -> 400, not a lookup")
+    void overlongLoginIsBadRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(credentials("u".repeat(256), "p".repeat(256))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[*].field").value(containsInAnyOrder("username", "password")));
+    }
+
+    @Test
     @DisplayName("login returns a signed JWT carrying the user's roles")
     void loginIssuesTokenWithRoles() throws Exception {
         mockMvc.perform(post("/api/v1/auth/login")
@@ -72,10 +85,18 @@ class AuthenticationFlowIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
                 .andExpect(jsonPath("$.roles[0]").value("ROLE_USER"))
+                // short-lived by default: roles in a token cannot be revoked before it expires
+                .andExpect(jsonPath("$.expiresIn").value(3600))
                 // the token is only returned in the body, never as a (script-readable) cookie
                 .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
 
-        assertThat(userToken.split("\\.")).hasSize(3);
+        String[] parts = userToken.split("\\.");
+        assertThat(parts).hasSize(3);
+        Map<String, Object> claims = JsonPath.parse(
+                        new String(Base64.getUrlDecoder().decode(parts[1]), UTF_8))
+                .read("$");
+        assertThat(((Number) claims.get("exp")).longValue() - ((Number) claims.get("iat")).longValue())
+                .isEqualTo(3600);
     }
 
     @Test
@@ -134,7 +155,7 @@ class AuthenticationFlowIT {
                                         .formatted(PASSWORD)))
                 .andExpect(status().isConflict())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-                .andExpect(jsonPath("$.detail").value("Username is already taken."));
+                .andExpect(jsonPath("$.detail").value("Username or e-mail is already in use."));
     }
 
     @Test
@@ -144,12 +165,12 @@ class AuthenticationFlowIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(registration("IT-User", "case-variant@example.com", PASSWORD)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail").value("Username is already taken."));
+                .andExpect(jsonPath("$.detail").value("Username or e-mail is already in use."));
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(registration("it-other", "IT-User@Example.com", PASSWORD)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail").value("E-mail is already registered."));
+                .andExpect(jsonPath("$.detail").value("Username or e-mail is already in use."));
     }
 
     @Test
@@ -159,7 +180,7 @@ class AuthenticationFlowIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(registration("It-Admin", "not-the-admin@example.com", PASSWORD)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail").value("Username is already taken."));
+                .andExpect(jsonPath("$.detail").value("Username or e-mail is already in use."));
     }
 
     @Test
@@ -231,9 +252,10 @@ class AuthenticationFlowIT {
                 "/api/v1/flights?from=&to=Henri&date=2020-11-01",
                 "/api/v1/flights?from=London&to= &date=2020-11-01",
                 "/api/v1/flights?from=London&date=2020-11-01",
-                "/api/v1/flights?from=London&to=Henri"
+                "/api/v1/flights?from=London&to=Henri",
+                "/api/v1/flights?from=Lo&to=Henri&date=2020-11-01"
             })
-    @DisplayName("flight search with a missing or blank parameter -> 400 problem+json, not every flight")
+    @DisplayName("flight search with a missing, blank or too short parameter -> 400 problem+json, not every flight")
     void incompleteFlightSearchIsBadRequest(String uri) throws Exception {
         mockMvc.perform(get(uri))
                 .andExpect(status().isBadRequest())

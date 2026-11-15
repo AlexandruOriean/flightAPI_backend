@@ -2,6 +2,7 @@ package com.codecool.flightapi.flight;
 
 import com.codecool.flightapi.airline.AirlineService;
 import com.codecool.flightapi.airport.AirportService;
+import com.codecool.flightapi.common.error.InvalidRequestException;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
 import com.codecool.flightapi.common.web.Pages;
 import java.time.Duration;
@@ -11,6 +12,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -28,6 +30,15 @@ public class FlightService {
     private static final Duration LATEST_OFFSET = Duration.ofHours(12);
 
     private static final Sort ORDER = Sort.by("departureAt", "id");
+
+    /** Shortest airport or city name term a search accepts; IATA codes have exactly this length. */
+    static final int MIN_SEARCH_TERM_LENGTH = 3;
+
+    /**
+     * Most flights a search may load. Far above any real route on one day, so only overly broad terms
+     * (which match most airports) reach it; those are rejected rather than answered with a partial list.
+     */
+    static final int MAX_SEARCH_ROWS = 500;
 
     private final FlightRepository flightRepository;
     private final FlightMapper flightMapper;
@@ -52,18 +63,28 @@ public class FlightService {
      * Flights from one airport to another departing on {@code date}, in the departure airport's local time.
      * Each airport is given either as its IATA code ({@code OTP}) or as part of the airport or city name
      * ({@code henri}, {@code London}), ignoring case.
+     *
+     * @throws InvalidRequestException if a term is shorter than {@value #MIN_SEARCH_TERM_LENGTH} characters, or
+     *     the terms match more than {@value #MAX_SEARCH_ROWS} flights
      */
     public List<FlightResponse> search(String from, String to, LocalDate date) {
+        requireSearchTerm(from);
+        requireSearchTerm(to);
         Instant utcDayStart = date.atStartOfDay(ZoneOffset.UTC).toInstant();
-        return flightRepository
-                .search(
-                        iataCode(from),
-                        containsPattern(from),
-                        iataCode(to),
-                        containsPattern(to),
-                        utcDayStart.minus(EARLIEST_OFFSET),
-                        utcDayStart.plus(Duration.ofDays(1)).plus(LATEST_OFFSET))
-                .stream()
+        // one row more than allowed tells a complete result from a cut-off one
+        List<Flight> flights = flightRepository.search(
+                iataCode(from),
+                containsPattern(from),
+                iataCode(to),
+                containsPattern(to),
+                utcDayStart.minus(EARLIEST_OFFSET),
+                utcDayStart.plus(Duration.ofDays(1)).plus(LATEST_OFFSET),
+                Limit.of(MAX_SEARCH_ROWS + 1));
+        if (flights.size() > MAX_SEARCH_ROWS) {
+            throw new InvalidRequestException(
+                    "The search matches too many flights. Use IATA codes or more specific airport or city names.");
+        }
+        return flights.stream()
                 .filter(flight -> departsOn(flight, date))
                 .map(flightMapper::toResponse)
                 .toList();
@@ -110,6 +131,13 @@ public class FlightService {
                 .atZone(flight.getDepartureAirport().getTimeZone())
                 .toLocalDate()
                 .equals(date);
+    }
+
+    private static void requireSearchTerm(String term) {
+        if (term.strip().length() < MIN_SEARCH_TERM_LENGTH) {
+            throw new InvalidRequestException("Search terms must be at least " + MIN_SEARCH_TERM_LENGTH
+                    + " characters: an IATA code or part of an airport or city name.");
+        }
     }
 
     private static String iataCode(String term) {

@@ -6,8 +6,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -15,7 +15,6 @@ import lombok.Setter;
 @Entity
 @Table(name = "Airline")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor
 @Getter
 @Setter
 public class Airline {
@@ -31,6 +30,18 @@ public class Airline {
     /** Three-letter ICAO airline designator, e.g. {@code ROT}. Unique (V5). */
     @Column(name = "icao_code", nullable = false, unique = true)
     private String icaoCode;
+
+    /** Optimistic lock (V10): a concurrent update of the same row fails instead of silently overwriting it. */
+    @Version
+    @Column(name = "version", nullable = false)
+    @Setter(AccessLevel.NONE)
+    private long version;
+
+    public Airline(Long id, String name, String icaoCode) {
+        this.id = id;
+        this.name = name;
+        this.icaoCode = icaoCode;
+    }
 
     /** Identity is the database id; a new, unsaved airline only equals itself. Safe with Hibernate proxies. */
     @Override

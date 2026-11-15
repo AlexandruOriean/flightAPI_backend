@@ -28,6 +28,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -213,6 +214,23 @@ class AirplaneControllerTest {
         mockMvc.perform(get("/api/v1/airplanes/{id}", "abc"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+    }
+
+    @Test
+    @DisplayName("concurrent update of the same airplane -> 409 problem+json")
+    @WithMockUser(roles = "ADMIN")
+    void concurrentUpdateIsConflict() throws Exception {
+        when(airplaneService.update(eq(1L), any(AirplaneRequest.class)))
+                .thenThrow(new ObjectOptimisticLockingFailureException(Airplane.class, 1L));
+
+        mockMvc.perform(put("/api/v1/airplanes/{id}", 1)
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                                "{\"manufacturer\":\"Airbus\",\"model\":\"A320\",\"numberOfSeats\":150,\"speed\":800}"))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.title").value("Concurrent update"));
     }
 
     @Test

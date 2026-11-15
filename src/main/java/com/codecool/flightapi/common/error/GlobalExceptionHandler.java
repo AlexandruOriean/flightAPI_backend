@@ -5,6 +5,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -39,9 +40,24 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.NOT_FOUND, "Resource not found", ex.getMessage());
     }
 
+    @ExceptionHandler(InvalidRequestException.class)
+    ProblemDetail handleInvalidRequest(InvalidRequestException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "Bad request", ex.getMessage());
+    }
+
     @ExceptionHandler(ResourceAlreadyExistsException.class)
     ProblemDetail handleAlreadyExists(ResourceAlreadyExistsException ex) {
         return problem(HttpStatus.CONFLICT, "Resource already exists", ex.getMessage());
+    }
+
+    /** Another request changed the same record between this request's read and its write. */
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    ProblemDetail handleConcurrentUpdate(OptimisticLockingFailureException ex) {
+        log.debug("Concurrent update", ex);
+        return problem(
+                HttpStatus.CONFLICT,
+                "Concurrent update",
+                "The resource was changed by another request at the same time. Reload it and try again.");
     }
 
     /** E.g. deleting a city that airports still reference. The SQL error is logged, not returned. */

@@ -2,6 +2,7 @@ package com.codecool.flightapi.security;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -14,14 +15,10 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
  * as {@code application/problem+json}, like every other error.
  */
 @Component
+@RequiredArgsConstructor
 public class ProblemDetailAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
-    private final HandlerExceptionResolver exceptionResolver;
-
-    public ProblemDetailAuthenticationEntryPoint(
-            @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver) {
-        this.exceptionResolver = exceptionResolver;
-    }
+    @Qualifier("handlerExceptionResolver") private final HandlerExceptionResolver exceptionResolver;
 
     @Override
     public void commence(

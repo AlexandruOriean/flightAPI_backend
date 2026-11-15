@@ -3,7 +3,7 @@ package com.codecool.flightapi.security;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.JwsHeader;
@@ -17,14 +17,16 @@ import org.springframework.stereotype.Service;
  * OAuth2 resource server using the {@code JwtDecoder} from {@link JwtConfig}.
  */
 @Service
+@RequiredArgsConstructor
 public class JwtTokenService {
 
     private final JwtEncoder jwtEncoder;
-    private final Duration tokenLifetime;
 
-    public JwtTokenService(JwtEncoder jwtEncoder, @Value("${app.jwt.expiration-ms:86400000}") long expirationMs) {
-        this.jwtEncoder = jwtEncoder;
-        this.tokenLifetime = Duration.ofMillis(expirationMs);
+    private final JwtProperties properties;
+
+    /** How long an issued token stays valid. */
+    public Duration getTokenLifetime() {
+        return properties.tokenLifetime();
     }
 
     public String generateToken(Authentication authentication) {
@@ -36,7 +38,7 @@ public class JwtTokenService {
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .subject(authentication.getName())
                 .issuedAt(now)
-                .expiresAt(now.plus(tokenLifetime))
+                .expiresAt(now.plus(getTokenLifetime()))
                 .claim(JwtConfig.ROLES_CLAIM, roles)
                 .build();
 

@@ -35,8 +35,8 @@ class AdminAccountInitializerTest {
     }
 
     private void rolesExist() {
-        when(roleRepository.findByName(RoleName.ROLE_USER)).thenReturn(Optional.of(userRole));
-        when(roleRepository.findByName(RoleName.ROLE_ADMIN)).thenReturn(Optional.of(adminRole));
+        when(roleRepository.getByName(RoleName.ROLE_USER)).thenReturn(userRole);
+        when(roleRepository.getByName(RoleName.ROLE_ADMIN)).thenReturn(adminRole);
     }
 
     @Test
@@ -58,7 +58,7 @@ class AdminAccountInitializerTest {
         verify(userRepository).save(saved.capture());
         assertThat(saved.getValue().getUsername()).isEqualTo("admin");
         assertThat(saved.getValue().getPassword()).isEqualTo("{bcrypt}hash");
-        assertThat(saved.getValue().getRole())
+        assertThat(saved.getValue().getRoles())
                 .extracting(Role::getName)
                 .containsExactlyInAnyOrder(RoleName.ROLE_USER, RoleName.ROLE_ADMIN);
     }
@@ -100,7 +100,7 @@ class AdminAccountInitializerTest {
                         initializer("admin", "admin@example.com", PASSWORD).run(args))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("refusing to promote");
-        assertThat(existing.getRole()).extracting(Role::getName).containsExactly(RoleName.ROLE_USER);
+        assertThat(existing.getRoles()).extracting(Role::getName).containsExactly(RoleName.ROLE_USER);
     }
 
     @Test

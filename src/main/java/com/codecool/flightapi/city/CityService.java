@@ -35,13 +35,14 @@ public class CityService {
     }
 
     /**
-     * The city with the given name (case-insensitive), for other features that reference cities.
+     * The city with the given name (ignoring case and surrounding whitespace), for other features that
+     * reference cities.
      *
      * @throws ResourceNotFoundException if absent
      */
     public City getByName(String cityName) {
         return cityRepository
-                .findByCityNameIgnoreCase(cityName)
+                .findByCityNameKey(City.key(cityName))
                 .orElseThrow(() -> new ResourceNotFoundException("City", "name", cityName));
     }
 
@@ -75,7 +76,7 @@ public class CityService {
 
     private void requireNameAvailable(String cityName, Long ownId) {
         cityRepository
-                .findByCityNameIgnoreCase(cityName)
+                .findByCityNameKey(City.key(cityName))
                 .filter(existing -> !existing.getCityId().equals(ownId))
                 .ifPresent(existing -> {
                     throw new ResourceAlreadyExistsException("City '" + cityName + "' already exists.");

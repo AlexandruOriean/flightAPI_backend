@@ -6,8 +6,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -15,7 +15,6 @@ import lombok.Setter;
 @Entity
 @Table(name = "Airplane")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor
 @Getter
 @Setter
 public class Airplane {
@@ -37,6 +36,20 @@ public class Airplane {
     /** Cruise speed in km/h. */
     @Column(name = "speed", nullable = false)
     private double speed;
+
+    /** Optimistic lock (V10): a concurrent update of the same row fails instead of silently overwriting it. */
+    @Version
+    @Column(name = "version", nullable = false)
+    @Setter(AccessLevel.NONE)
+    private long version;
+
+    public Airplane(Long id, String manufacturer, String model, Long numberOfSeats, double speed) {
+        this.id = id;
+        this.manufacturer = manufacturer;
+        this.model = model;
+        this.numberOfSeats = numberOfSeats;
+        this.speed = speed;
+    }
 
     /** Identity is the database id; a new, unsaved airplane only equals itself. Safe with Hibernate proxies. */
     @Override

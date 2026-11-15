@@ -1,7 +1,7 @@
 package com.codecool.flightapi.user;
 
-import java.util.HashSet;
 import java.util.Set;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -24,6 +24,7 @@ import org.springframework.util.StringUtils;
  * </ul>
  */
 @Component
+@RequiredArgsConstructor
 public class AdminAccountInitializer implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(AdminAccountInitializer.class);
@@ -32,17 +33,6 @@ public class AdminAccountInitializer implements ApplicationRunner {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
-
-    public AdminAccountInitializer(
-            AdminAccountProperties admin,
-            UserRepository userRepository,
-            RoleRepository roleRepository,
-            PasswordEncoder passwordEncoder) {
-        this.admin = admin;
-        this.userRepository = userRepository;
-        this.roleRepository = roleRepository;
-        this.passwordEncoder = passwordEncoder;
-    }
 
     @Override
     @Transactional
@@ -70,29 +60,23 @@ public class AdminAccountInitializer implements ApplicationRunner {
     }
 
     private void createAdmin() {
-        User user = new User();
-        user.setUsername(User.normalize(admin.username()));
-        user.setEmail(User.normalize(admin.email()));
-        user.setName(admin.username());
-        user.setPassword(passwordEncoder.encode(admin.password()));
-        user.setRole(new HashSet<>(Set.of(findRole(RoleName.ROLE_USER), findRole(RoleName.ROLE_ADMIN))));
-        userRepository.save(user);
+        userRepository.save(new User(
+                null,
+                admin.username(),
+                admin.username(),
+                passwordEncoder.encode(admin.password()),
+                admin.email(),
+                Set.of(roleRepository.getByName(RoleName.ROLE_USER), roleRepository.getByName(RoleName.ROLE_ADMIN))));
         log.info("Created admin account '{}'", admin.username());
     }
 
     private void requireAdminRole(User user) {
-        boolean isAdmin = user.getRole().stream().anyMatch(role -> role.getName() == RoleName.ROLE_ADMIN);
+        boolean isAdmin = user.getRoles().stream().anyMatch(role -> role.getName() == RoleName.ROLE_ADMIN);
         if (!isAdmin) {
             throw new IllegalStateException("app.admin.username '" + user.getUsername()
                     + "' belongs to an existing account without ROLE_ADMIN; refusing to promote it."
                     + " Choose another app.admin.username, or verify that account and grant the role in the database");
         }
         log.info("Admin account '{}' already exists", user.getUsername());
-    }
-
-    private Role findRole(RoleName name) {
-        return roleRepository
-                .findByName(name)
-                .orElseThrow(() -> new IllegalStateException("Role " + name + " is missing from the database"));
     }
 }

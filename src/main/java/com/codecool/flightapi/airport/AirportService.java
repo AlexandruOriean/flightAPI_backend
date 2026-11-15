@@ -5,7 +5,7 @@ import com.codecool.flightapi.common.error.ResourceAlreadyExistsException;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
 import com.codecool.flightapi.common.web.Pages;
 import java.util.List;
-import java.util.Optional;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -53,12 +53,14 @@ public class AirportService {
      * @throws ResourceNotFoundException if absent
      */
     public Airport getByIataCode(String iataCode) {
-        return Optional.ofNullable(airportRepository.getAirportByIataCode(iataCode))
+        return airportRepository
+                .findByAirportIataCode(normalizeIataCode(iataCode))
                 .orElseThrow(() -> new ResourceNotFoundException("Airport", "IATA code", iataCode));
     }
 
+    /** Every airport's name, alphabetically. */
     public List<String> findAllNames() {
-        return airportRepository.getAllAirportsNames();
+        return airportRepository.findAllNames();
     }
 
     /**
@@ -94,11 +96,17 @@ public class AirportService {
     }
 
     private void requireIataCodeAvailable(String iataCode, Long ownId) {
-        Optional.ofNullable(airportRepository.getAirportByIataCode(iataCode))
+        airportRepository
+                .findByAirportIataCode(normalizeIataCode(iataCode))
                 .filter(existing -> !existing.getId().equals(ownId))
                 .ifPresent(existing -> {
                     throw new ResourceAlreadyExistsException(
                             "An airport with IATA code '" + iataCode + "' already exists.");
                 });
+    }
+
+    /** IATA codes are stored in upper case; lookups accept any case. */
+    private static String normalizeIataCode(String iataCode) {
+        return iataCode.strip().toUpperCase(Locale.ROOT);
     }
 }

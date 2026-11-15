@@ -21,4 +21,11 @@ class RoleRepositoryTest {
     void everyRoleIsSeeded(RoleName role) {
         assertThat(roleRepository.findByName(role)).isPresent();
     }
+
+    @ParameterizedTest
+    @EnumSource(RoleName.class)
+    @DisplayName("getByName returns every seeded role")
+    void getByNameReturnsSeededRoles(RoleName name) {
+        assertThat(roleRepository.getByName(name).getName()).isEqualTo(name);
+    }
 }

@@ -1,6 +1,7 @@
 package com.codecool.flightapi;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.codecool.flightapi.airline.Airline;
 import com.codecool.flightapi.airplane.Airplane;
@@ -8,6 +9,9 @@ import com.codecool.flightapi.airport.Airport;
 import com.codecool.flightapi.city.City;
 import com.codecool.flightapi.common.money.Money;
 import com.codecool.flightapi.flight.Flight;
+import com.codecool.flightapi.user.Role;
+import com.codecool.flightapi.user.RoleName;
+import com.codecool.flightapi.user.User;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -28,6 +32,8 @@ class EntityEqualityTest {
         assertThat(new Airplane(1L, "Airbus", "A320", 150L, 800))
                 .isEqualTo(new Airplane(1L, "Boeing", "B737", 180L, 700));
         assertThat(airport(1L, "OTP")).isEqualTo(airport(1L, "BBU"));
+        assertThat(new Role(1, RoleName.ROLE_USER)).isEqualTo(new Role(1, RoleName.ROLE_ADMIN));
+        assertThat(user(1L, "ana")).isEqualTo(user(1L, "bob"));
     }
 
     @Test
@@ -36,6 +42,32 @@ class EntityEqualityTest {
         assertThat(new City(1L, "London")).isNotEqualTo(new City(2L, "London"));
         assertThat(new City(null, "London")).isNotEqualTo(new City(null, "London"));
         assertThat(airport(null, "OTP")).isNotEqualTo(airport(null, "OTP"));
+        assertThat(new Role(1, RoleName.ROLE_USER)).isNotEqualTo(new Role(2, RoleName.ROLE_USER));
+        assertThat(user(null, "ana")).isNotEqualTo(user(null, "ana"));
+    }
+
+    @Test
+    @DisplayName("a user's roles are a set by role id, and read-only")
+    void userRolesAreAReadOnlySet() {
+        User user = new User(
+                1L,
+                "Ana",
+                "ana",
+                "{bcrypt}hash",
+                "ana@example.com",
+                Set.of(new Role(1, RoleName.ROLE_USER), new Role(2, RoleName.ROLE_ADMIN)));
+
+        assertThat(user.getRoles()).contains(new Role(1, RoleName.ROLE_USER)).hasSize(2);
+        assertThatThrownBy(() -> user.getRoles().clear()).isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    @DisplayName("username and e-mail are stored in lower case")
+    void userNormalizesUsernameAndEmail() {
+        User user = new User(null, "Ana", "Ana.Pop", "{bcrypt}hash", "Ana@Example.com", Set.of());
+
+        assertThat(user.getUsername()).isEqualTo("ana.pop");
+        assertThat(user.getEmail()).isEqualTo("ana@example.com");
     }
 
     @Test
@@ -73,5 +105,9 @@ class EntityEqualityTest {
     private static Airport airport(Long id, String iataCode) {
         return new Airport(
                 id, iataCode, "Airport " + iataCode, new City(1L, "Bucuresti"), ZoneId.of("Europe/Bucharest"));
+    }
+
+    private static User user(Long id, String username) {
+        return new User(id, username, username, "{bcrypt}hash", username + "@example.com", Set.of());
     }
 }

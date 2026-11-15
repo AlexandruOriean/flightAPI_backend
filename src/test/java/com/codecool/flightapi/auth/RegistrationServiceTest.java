@@ -14,7 +14,6 @@ import com.codecool.flightapi.user.RoleName;
 import com.codecool.flightapi.user.RoleRepository;
 import com.codecool.flightapi.user.User;
 import com.codecool.flightapi.user.UserRepository;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -47,7 +46,7 @@ class RegistrationServiceTest {
 
     @Test
     void registersPlainUserWithEncodedPassword() {
-        when(roleRepository.findByName(RoleName.ROLE_USER)).thenReturn(Optional.of(new Role(1, RoleName.ROLE_USER)));
+        when(roleRepository.getByName(RoleName.ROLE_USER)).thenReturn(new Role(1, RoleName.ROLE_USER));
         when(passwordEncoder.encode("Secret123!")).thenReturn("{bcrypt}hash");
 
         registrationService.register(request);
@@ -55,13 +54,13 @@ class RegistrationServiceTest {
         ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(saved.capture());
         assertThat(saved.getValue().getPassword()).isEqualTo("{bcrypt}hash");
-        assertThat(saved.getValue().getRole()).extracting(Role::getName).containsExactly(RoleName.ROLE_USER);
-        verify(roleRepository, never()).findByName(RoleName.ROLE_ADMIN);
+        assertThat(saved.getValue().getRoles()).extracting(Role::getName).containsExactly(RoleName.ROLE_USER);
+        verify(roleRepository, never()).getByName(RoleName.ROLE_ADMIN);
     }
 
     @Test
     void storesUsernameAndEmailInLowerCase() {
-        when(roleRepository.findByName(RoleName.ROLE_USER)).thenReturn(Optional.of(new Role(1, RoleName.ROLE_USER)));
+        when(roleRepository.getByName(RoleName.ROLE_USER)).thenReturn(new Role(1, RoleName.ROLE_USER));
 
         registrationService.register(new RegisterRequest("Alice", "Alice", "Alice@Example.com", "Secret123!"));
 
@@ -78,7 +77,7 @@ class RegistrationServiceTest {
         assertThatThrownBy(() -> registrationService.register(
                         new RegisterRequest("Admin", "Mallory", "mallory@example.com", "Secret123!")))
                 .isInstanceOf(ResourceAlreadyExistsException.class)
-                .hasMessage("Username is already taken.");
+                .hasMessage("Username or e-mail is already in use.");
         verify(userRepository, never()).save(any());
     }
 
@@ -88,7 +87,7 @@ class RegistrationServiceTest {
 
         assertThatThrownBy(() -> registrationService.register(request))
                 .isInstanceOf(ResourceAlreadyExistsException.class)
-                .hasMessage("Username is already taken.");
+                .hasMessage("Username or e-mail is already in use.");
         verify(userRepository, never()).save(any());
     }
 
@@ -98,7 +97,7 @@ class RegistrationServiceTest {
 
         assertThatThrownBy(() -> registrationService.register(request))
                 .isInstanceOf(ResourceAlreadyExistsException.class)
-                .hasMessage("E-mail is already registered.");
+                .hasMessage("Username or e-mail is already in use.");
         verify(userRepository, never()).save(any());
     }
 }
