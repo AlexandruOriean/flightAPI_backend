@@ -3,8 +3,8 @@ package com.codecool.flightapi;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.codecool.flightapi.aircraft.AircraftType;
 import com.codecool.flightapi.airline.Airline;
-import com.codecool.flightapi.airplane.Airplane;
 import com.codecool.flightapi.airport.Airport;
 import com.codecool.flightapi.city.City;
 import com.codecool.flightapi.common.money.Money;
@@ -29,8 +29,8 @@ class EntityEqualityTest {
     void sameIdIsEqual() {
         assertThat(new City(1L, "London")).isEqualTo(new City(1L, "Londra"));
         assertThat(new Airline(1L, "Tarom", "ROT")).isEqualTo(new Airline(1L, "TAROM", "ROT"));
-        assertThat(new Airplane(1L, "Airbus", "A320", 150L, 800))
-                .isEqualTo(new Airplane(1L, "Boeing", "B737", 180L, 700));
+        assertThat(new AircraftType(1L, "A320", "Airbus", "A320", 840, 180))
+                .isEqualTo(new AircraftType(1L, "B738", "Boeing", "737-800", 840, 189));
         assertThat(airport(1L, "OTP")).isEqualTo(airport(1L, "BBU"));
         assertThat(new Role(1, RoleName.ROLE_USER)).isEqualTo(new Role(1, RoleName.ROLE_ADMIN));
         assertThat(user(1L, "ana")).isEqualTo(user(1L, "bob"));

@@ -1,5 +1,6 @@
 package com.codecool.flightapi.flight;
 
+import com.codecool.flightapi.aircraft.AircraftType;
 import com.codecool.flightapi.airline.Airline;
 import com.codecool.flightapi.airport.Airport;
 import com.codecool.flightapi.common.money.Money;
@@ -59,6 +60,11 @@ public class Flight {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "airline_id", nullable = false)
     private Airline airline;
+
+    /** Which kind of aircraft operates the flight; optional (V15). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "aircraft_type_id")
+    private AircraftType aircraftType;
 
     /** Optimistic lock (V10): a concurrent update of the same row fails instead of silently overwriting it. */
     @Version

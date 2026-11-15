@@ -13,18 +13,18 @@ import org.springframework.data.repository.query.Param;
 
 interface FlightRepository extends JpaRepository<Flight, Long> {
 
-    /** Airports, their cities and the airline are lazy; load them in the same query. */
+    /** Airports, their cities, the airline and the aircraft type are lazy; load them in the same query. */
     @Override
-    @EntityGraph(attributePaths = {"departureAirport.city", "arrivalAirport.city", "airline"})
+    @EntityGraph(attributePaths = {"departureAirport.city", "arrivalAirport.city", "airline", "aircraftType"})
     Page<Flight> findAll(Pageable pageable);
 
     @Override
-    @EntityGraph(attributePaths = {"departureAirport.city", "arrivalAirport.city", "airline"})
+    @EntityGraph(attributePaths = {"departureAirport.city", "arrivalAirport.city", "airline", "aircraftType"})
     Optional<Flight> findById(Long id);
 
     /**
      * Flights departing in {@code [from, until)} between two airports, each matched by exact IATA code or by a LIKE
-     * pattern on the airport or city name. Airports, cities and airline are fetched in the same query.
+     * pattern on the airport or city name. Airports, cities, airline and aircraft type are fetched in the same query.
      *
      * @param fromCode upper-case IATA code of the departure airport
      * @param fromPattern lower-case LIKE pattern ({@code \} escapes) for the departure airport/city name
@@ -39,6 +39,7 @@ interface FlightRepository extends JpaRepository<Flight, Long> {
               join fetch f.departureAirport dep left join fetch dep.city depCity
               join fetch f.arrivalAirport arr left join fetch arr.city arrCity
               left join fetch f.airline
+              left join fetch f.aircraftType
             where f.departureAt >= :from and f.departureAt < :until
               and (dep.airportIataCode = :fromCode
                    or lower(dep.airportName) like :fromPattern escape '\\'

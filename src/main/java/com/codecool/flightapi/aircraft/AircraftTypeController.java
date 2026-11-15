@@ -1,0 +1,54 @@
+package com.codecool.flightapi.aircraft;
+
+import com.codecool.flightapi.common.web.Locations;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PagedModel;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/v1/aircraft-types")
+@RequiredArgsConstructor
+public class AircraftTypeController {
+
+    private final AircraftTypeService aircraftTypeService;
+
+    /** One page of aircraft types: {@code ?page=0&size=20}. */
+    @GetMapping
+    public ResponseEntity<PagedModel<AircraftTypeResponse>> getAircraftTypes(Pageable pageable) {
+        return ResponseEntity.ok(new PagedModel<>(aircraftTypeService.findAll(pageable)));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<AircraftTypeResponse> getAircraftType(@PathVariable Long id) {
+        return ResponseEntity.ok(aircraftTypeService.findById(id));
+    }
+
+    @PostMapping
+    public ResponseEntity<AircraftTypeResponse> createAircraftType(@Valid @RequestBody AircraftTypeRequest request) {
+        AircraftTypeResponse created = aircraftTypeService.create(request);
+        return ResponseEntity.created(Locations.ofCreated(created.id())).body(created);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<AircraftTypeResponse> updateAircraftType(
+            @PathVariable Long id, @Valid @RequestBody AircraftTypeRequest request) {
+        return ResponseEntity.ok(aircraftTypeService.update(id, request));
+    }
+
+    /** 204; 409 while flights still use the type. */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteAircraftType(@PathVariable Long id) {
+        aircraftTypeService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+}

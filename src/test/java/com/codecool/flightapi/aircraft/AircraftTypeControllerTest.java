@@ -1,4 +1,4 @@
-package com.codecool.flightapi.airplane;
+package com.codecool.flightapi.aircraft;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.mockito.ArgumentMatchers.any;
@@ -33,35 +33,35 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-/** Web layer of {@link AirplaneController}: status codes, headers, bodies and problem+json errors. */
-@WebMvcTest(AirplaneController.class)
+/** Web layer of {@link AircraftTypeController}: status codes, headers, bodies and problem+json errors. */
+@WebMvcTest(AircraftTypeController.class)
 @WithMockUser
-class AirplaneControllerTest {
+class AircraftTypeControllerTest {
 
-    private static final String AIRPLANE_JSON = """
-            {"manufacturer":"Airbus","model":"A380","numberOfSeats":853,"speed":1185}
+    private static final String AIRCRAFT_TYPE_JSON = """
+            {"icaoCode":"A388","manufacturer":"Airbus","model":"A380-800","cruiseSpeedKmh":903,"typicalSeats":555}
             """;
 
     @Autowired
     private MockMvc mockMvc;
 
     @MockitoBean
-    private AirplaneService airplaneService;
+    private AircraftTypeService aircraftTypeService;
 
-    private final AirplaneResponse airbus = new AirplaneResponse(1L, "Airbus", "A380", 853L, 1185);
-    private final AirplaneResponse boeing = new AirplaneResponse(2L, "Boeing", "737MAX", 180L, 800);
+    private final AircraftTypeResponse airbus = new AircraftTypeResponse(1L, "A388", "Airbus", "A380-800", 903, 555);
+    private final AircraftTypeResponse boeing = new AircraftTypeResponse(2L, "B38M", "Boeing", "737 MAX 8", 840, null);
 
     @Test
-    @DisplayName("GET /api/v1/airplanes -> 200 with one page of airplanes and the page metadata")
-    void getAirplanes() throws Exception {
-        when(airplaneService.findAll(PageRequest.of(1, 2)))
+    @DisplayName("GET /api/v1/aircraft-types -> 200 with one page of aircraft types and the page metadata")
+    void getAircraftTypes() throws Exception {
+        when(aircraftTypeService.findAll(PageRequest.of(1, 2)))
                 .thenReturn(new PageImpl<>(List.of(airbus, boeing), PageRequest.of(1, 2), 5));
 
-        mockMvc.perform(get("/api/v1/airplanes").param("page", "1").param("size", "2"))
+        mockMvc.perform(get("/api/v1/aircraft-types").param("page", "1").param("size", "2"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.content.length()").value(2))
-                .andExpect(jsonPath("$.content[0].model").value("A380"))
+                .andExpect(jsonPath("$.content[0].icaoCode").value("A388"))
                 .andExpect(jsonPath("$.content[1].manufacturer").value("Boeing"))
                 .andExpect(jsonPath("$.page.number").value(1))
                 .andExpect(jsonPath("$.page.size").value(2))
@@ -70,128 +70,128 @@ class AirplaneControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/v1/airplanes without parameters asks for the first 20")
-    void getAirplanesDefaultsToFirstPage() throws Exception {
-        when(airplaneService.findAll(any(Pageable.class))).thenReturn(Page.empty());
+    @DisplayName("GET /api/v1/aircraft-types without parameters asks for the first 20")
+    void getAircraftTypesDefaultsToFirstPage() throws Exception {
+        when(aircraftTypeService.findAll(any(Pageable.class))).thenReturn(Page.empty());
 
-        mockMvc.perform(get("/api/v1/airplanes")).andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/aircraft-types")).andExpect(status().isOk());
 
-        verify(airplaneService).findAll(PageRequest.of(0, 20));
+        verify(aircraftTypeService).findAll(PageRequest.of(0, 20));
     }
 
     @Test
-    @DisplayName("GET /api/v1/airplanes caps the page size at 100")
-    void getAirplanesCapsThePageSize() throws Exception {
-        when(airplaneService.findAll(any(Pageable.class))).thenReturn(Page.empty());
+    @DisplayName("GET /api/v1/aircraft-types caps the page size at 100")
+    void getAircraftTypesCapsThePageSize() throws Exception {
+        when(aircraftTypeService.findAll(any(Pageable.class))).thenReturn(Page.empty());
 
-        mockMvc.perform(get("/api/v1/airplanes").param("size", "100000")).andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/aircraft-types").param("size", "100000")).andExpect(status().isOk());
 
-        verify(airplaneService).findAll(PageRequest.of(0, 100));
+        verify(aircraftTypeService).findAll(PageRequest.of(0, 100));
     }
 
     @Test
-    @DisplayName("GET /api/v1/airplanes/{id} -> 200 with the airplane")
-    void getAirplane() throws Exception {
-        when(airplaneService.findById(1L)).thenReturn(airbus);
+    @DisplayName("GET /api/v1/aircraft-types/{id} -> 200 with the aircraft type")
+    void getAircraftType() throws Exception {
+        when(aircraftTypeService.findById(1L)).thenReturn(airbus);
 
-        mockMvc.perform(get("/api/v1/airplanes/{id}", 1))
+        mockMvc.perform(get("/api/v1/aircraft-types/{id}", 1))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.model").value("A380"));
+                .andExpect(jsonPath("$.icaoCode").value("A388"));
     }
 
     @Test
-    @DisplayName("GET /api/v1/airplanes/{id} for an unknown id -> 404 problem+json")
-    void getUnknownAirplane() throws Exception {
-        when(airplaneService.findById(99L)).thenThrow(ResourceNotFoundException.byId("Airplane", 99L));
+    @DisplayName("GET /api/v1/aircraft-types/{id} for an unknown id -> 404 problem+json")
+    void getUnknownAircraftType() throws Exception {
+        when(aircraftTypeService.findById(99L)).thenThrow(ResourceNotFoundException.byId("Aircraft type", 99L));
 
-        mockMvc.perform(get("/api/v1/airplanes/{id}", 99))
+        mockMvc.perform(get("/api/v1/aircraft-types/{id}", 99))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.title").value("Resource not found"))
-                .andExpect(jsonPath("$.detail").value("Airplane with id '99' was not found"))
-                .andExpect(jsonPath("$.instance").value("/api/v1/airplanes/99"));
+                .andExpect(jsonPath("$.detail").value("Aircraft type with id '99' was not found"))
+                .andExpect(jsonPath("$.instance").value("/api/v1/aircraft-types/99"));
     }
 
     @Test
-    @DisplayName("POST /api/v1/airplanes -> 201 with Location header and the created airplane")
-    void createAirplane() throws Exception {
-        when(airplaneService.create(any(AirplaneRequest.class))).thenReturn(airbus);
+    @DisplayName("POST /api/v1/aircraft-types -> 201 with Location header and the created aircraft type")
+    void createAircraftType() throws Exception {
+        when(aircraftTypeService.create(any(AircraftTypeRequest.class))).thenReturn(airbus);
 
-        mockMvc.perform(post("/api/v1/airplanes")
+        mockMvc.perform(post("/api/v1/aircraft-types")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(AIRPLANE_JSON))
+                        .content(AIRCRAFT_TYPE_JSON))
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Location", "http://localhost/api/v1/airplanes/1"))
+                .andExpect(header().string("Location", "http://localhost/api/v1/aircraft-types/1"))
                 .andExpect(jsonPath("$.id").value(1));
     }
 
     @Test
-    @DisplayName("POST /api/v1/airplanes binds the request DTO; a client-supplied id is not part of it")
-    void createAirplaneBindsRequest() throws Exception {
-        when(airplaneService.create(any(AirplaneRequest.class))).thenReturn(airbus);
+    @DisplayName("POST /api/v1/aircraft-types binds the request DTO; a client-supplied id is not part of it")
+    void createAircraftTypeBindsRequest() throws Exception {
+        when(aircraftTypeService.create(any(AircraftTypeRequest.class))).thenReturn(airbus);
 
-        mockMvc.perform(post("/api/v1/airplanes")
+        mockMvc.perform(post("/api/v1/aircraft-types")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"id":99,"manufacturer":"Airbus","model":"A380","numberOfSeats":853,"speed":1185}
+                                {"id":99,"icaoCode":"A388","manufacturer":"Airbus","model":"A380-800","cruiseSpeedKmh":903,"typicalSeats":555}
                                 """))
                 .andExpect(status().isCreated());
 
-        verify(airplaneService).create(new AirplaneRequest("Airbus", "A380", 853L, 1185.0));
+        verify(aircraftTypeService).create(new AircraftTypeRequest("A388", "Airbus", "A380-800", 903, 555));
     }
 
     @Test
     @DisplayName("invalid request body -> 400 problem+json listing every invalid field")
     void invalidRequestIsBadRequest() throws Exception {
-        mockMvc.perform(post("/api/v1/airplanes")
+        mockMvc.perform(post("/api/v1/aircraft-types")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"manufacturer":"","model":"A380","numberOfSeats":0}
+                                {"icaoCode":"a380x","manufacturer":"","model":"A380","typicalSeats":0}
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.title").value("Validation failed"))
                 .andExpect(jsonPath("$.errors[*].field")
-                        .value(containsInAnyOrder("manufacturer", "numberOfSeats", "speed")));
-        verifyNoInteractions(airplaneService);
+                        .value(containsInAnyOrder("icaoCode", "manufacturer", "cruiseSpeedKmh", "typicalSeats")));
+        verifyNoInteractions(aircraftTypeService);
     }
 
     @Test
-    @DisplayName("PUT /api/v1/airplanes/{id} -> 200 with the updated airplane")
-    void updateAirplane() throws Exception {
-        when(airplaneService.update(eq(1L), any(AirplaneRequest.class))).thenReturn(airbus);
+    @DisplayName("PUT /api/v1/aircraft-types/{id} -> 200 with the updated aircraft type")
+    void updateAircraftType() throws Exception {
+        when(aircraftTypeService.update(eq(1L), any(AircraftTypeRequest.class))).thenReturn(airbus);
 
-        mockMvc.perform(put("/api/v1/airplanes/{id}", 1)
+        mockMvc.perform(put("/api/v1/aircraft-types/{id}", 1)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(AIRPLANE_JSON))
+                        .content(AIRCRAFT_TYPE_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.model").value("A380"));
+                .andExpect(jsonPath("$.icaoCode").value("A388"));
     }
 
     @Test
-    @DisplayName("DELETE /api/v1/airplanes/{id} -> 204 without body")
-    void deleteAirplane() throws Exception {
-        mockMvc.perform(delete("/api/v1/airplanes/{id}", 1).with(csrf()))
+    @DisplayName("DELETE /api/v1/aircraft-types/{id} -> 204 without body")
+    void deleteAircraftType() throws Exception {
+        mockMvc.perform(delete("/api/v1/aircraft-types/{id}", 1).with(csrf()))
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
 
-        verify(airplaneService).delete(1L);
+        verify(aircraftTypeService).delete(1L);
     }
 
     @Test
-    @DisplayName("DELETE /api/v1/airplanes/{id} for an unknown id -> 404 problem+json")
-    void deleteUnknownAirplane() throws Exception {
-        doThrow(ResourceNotFoundException.byId("Airplane", 99L))
-                .when(airplaneService)
+    @DisplayName("DELETE /api/v1/aircraft-types/{id} for an unknown id -> 404 problem+json")
+    void deleteUnknownAircraftType() throws Exception {
+        doThrow(ResourceNotFoundException.byId("Aircraft type", 99L))
+                .when(aircraftTypeService)
                 .delete(99L);
 
-        mockMvc.perform(delete("/api/v1/airplanes/{id}", 99).with(csrf()))
+        mockMvc.perform(delete("/api/v1/aircraft-types/{id}", 99).with(csrf()))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
     }
@@ -199,7 +199,7 @@ class AirplaneControllerTest {
     @Test
     @DisplayName("malformed JSON body -> 400 problem+json")
     void malformedJsonIsBadRequest() throws Exception {
-        mockMvc.perform(post("/api/v1/airplanes")
+        mockMvc.perform(post("/api/v1/aircraft-types")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{not json"))
@@ -211,23 +211,24 @@ class AirplaneControllerTest {
     @Test
     @DisplayName("non-numeric id -> 400 problem+json instead of 500")
     void nonNumericIdIsBadRequest() throws Exception {
-        mockMvc.perform(get("/api/v1/airplanes/{id}", "abc"))
+        mockMvc.perform(get("/api/v1/aircraft-types/{id}", "abc"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
     }
 
     @Test
-    @DisplayName("concurrent update of the same airplane -> 409 problem+json")
+    @DisplayName("concurrent update of the same aircraft type -> 409 problem+json")
     @WithMockUser(roles = "ADMIN")
     void concurrentUpdateIsConflict() throws Exception {
-        when(airplaneService.update(eq(1L), any(AirplaneRequest.class)))
-                .thenThrow(new ObjectOptimisticLockingFailureException(Airplane.class, 1L));
+        when(aircraftTypeService.update(eq(1L), any(AircraftTypeRequest.class)))
+                .thenThrow(new ObjectOptimisticLockingFailureException(AircraftType.class, 1L));
 
-        mockMvc.perform(put("/api/v1/airplanes/{id}", 1)
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(
-                                "{\"manufacturer\":\"Airbus\",\"model\":\"A320\",\"numberOfSeats\":150,\"speed\":800}"))
+        mockMvc.perform(
+                        put("/api/v1/aircraft-types/{id}", 1)
+                                .with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        "{\"icaoCode\":\"A320\",\"manufacturer\":\"Airbus\",\"model\":\"A320\",\"cruiseSpeedKmh\":840}"))
                 .andExpect(status().isConflict())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.title").value("Concurrent update"));
@@ -236,10 +237,10 @@ class AirplaneControllerTest {
     @Test
     @DisplayName("unexpected exception -> 500 problem+json without internal details")
     void unexpectedErrorDoesNotLeakDetails() throws Exception {
-        when(airplaneService.findAll(any(Pageable.class)))
+        when(aircraftTypeService.findAll(any(Pageable.class)))
                 .thenThrow(new IllegalStateException("db password is hunter2"));
 
-        mockMvc.perform(get("/api/v1/airplanes"))
+        mockMvc.perform(get("/api/v1/aircraft-types"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.detail").value("An unexpected error occurred."));

@@ -7,6 +7,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.codecool.flightapi.aircraft.AircraftType;
+import com.codecool.flightapi.aircraft.AircraftTypeMapperImpl;
+import com.codecool.flightapi.aircraft.AircraftTypeService;
 import com.codecool.flightapi.airline.Airline;
 import com.codecool.flightapi.airline.AirlineMapperImpl;
 import com.codecool.flightapi.airline.AirlineService;
@@ -59,6 +62,9 @@ class FlightServiceTest {
     @Mock
     private AirlineService airlineService;
 
+    @Mock
+    private AircraftTypeService aircraftTypeService;
+
     private FlightService flightService;
 
     private final Airport otopeni =
@@ -66,12 +72,17 @@ class FlightServiceTest {
     private final Airport heathrow =
             new Airport(2L, "LHR", "Heathrow", new City(21L, "London"), ZoneId.of("Europe/London"));
     private final Airline tarom = new Airline(10000L, "Tarom", "ROT");
+    private final AircraftType boeing738 = new AircraftType(3L, "B738", "Boeing", "737-800", 840, 189);
 
     @BeforeEach
     void setUp() {
         FlightMapper mapper = new FlightMapperImpl(
-                new AirportMapperImpl(new CityMapperImpl()), new AirlineMapperImpl(), new MoneyMapperImpl());
-        flightService = new FlightService(flightRepository, mapper, airportService, airlineService);
+                new AirportMapperImpl(new CityMapperImpl()),
+                new AirlineMapperImpl(),
+                new AircraftTypeMapperImpl(),
+                new MoneyMapperImpl());
+        flightService =
+                new FlightService(flightRepository, mapper, airportService, airlineService, aircraftTypeService);
     }
 
     @Test
@@ -170,6 +181,46 @@ class FlightServiceTest {
     }
 
     @Test
+    void createResolvesTheAircraftTypeFromItsCode() {
+        when(airportService.getByIataCode("OTP")).thenReturn(otopeni);
+        when(airportService.getByIataCode("LHR")).thenReturn(heathrow);
+        when(airlineService.getByIcaoCode("ROT")).thenReturn(tarom);
+        when(aircraftTypeService.getByIcaoCode("B738")).thenReturn(boeing738);
+        when(flightRepository.save(any(Flight.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        FlightResponse created = flightService.create(request("OTP", "LHR", "B738"));
+
+        assertThat(created.aircraftType().icaoCode()).isEqualTo("B738");
+        assertThat(created.aircraftType().model()).isEqualTo("737-800");
+    }
+
+    @Test
+    void createWithoutAircraftTypeLeavesItEmpty() {
+        when(airportService.getByIataCode("OTP")).thenReturn(otopeni);
+        when(airportService.getByIataCode("LHR")).thenReturn(heathrow);
+        when(airlineService.getByIcaoCode("ROT")).thenReturn(tarom);
+        when(flightRepository.save(any(Flight.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThat(flightService.create(request("OTP", "LHR")).aircraftType()).isNull();
+        verify(aircraftTypeService, never()).getByIcaoCode(any());
+    }
+
+    @Test
+    void updateWithoutAircraftTypeRemovesIt() {
+        Flight existing = flight(1L, "2021-01-15T07:20:00Z", "2021-01-15T10:50:00Z");
+        existing.setAircraftType(boeing738);
+        when(flightRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(airportService.getByIataCode("LHR")).thenReturn(heathrow);
+        when(airportService.getByIataCode("OTP")).thenReturn(otopeni);
+        when(airlineService.getByIcaoCode("ROT")).thenReturn(tarom);
+
+        // PUT replaces the whole flight, so a request without a code clears the type
+        flightService.update(1L, request("LHR", "OTP"));
+
+        assertThat(existing.getAircraftType()).isNull();
+    }
+
+    @Test
     void createWithUnknownAirportSavesNothing() {
         when(airportService.getByIataCode("XXX"))
                 .thenThrow(new ResourceNotFoundException("Airport", "IATA code", "XXX"));
@@ -199,13 +250,18 @@ class FlightServiceTest {
     }
 
     private static FlightRequest request(String from, String to) {
+        return request(from, to, null);
+    }
+
+    private static FlightRequest request(String from, String to, String aircraftTypeCode) {
         return new FlightRequest(
                 from,
                 to,
                 "ROT",
                 OffsetDateTime.parse("2021-01-16T06:00:00+01:00"),
                 OffsetDateTime.parse("2021-01-16T08:30:00Z"),
-                new MoneyDto(new BigDecimal("250.50"), "EUR"));
+                new MoneyDto(new BigDecimal("250.50"), "EUR"),
+                aircraftTypeCode);
     }
 
     private Flight flight(Long id, String departure, String arrival) {

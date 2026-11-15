@@ -3,6 +3,8 @@ package com.codecool.flightapi.flight;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.codecool.flightapi.aircraft.AircraftTypeMapperImpl;
+import com.codecool.flightapi.aircraft.AircraftTypeService;
 import com.codecool.flightapi.airline.AirlineMapperImpl;
 import com.codecool.flightapi.airline.AirlineService;
 import com.codecool.flightapi.airport.Airport;
@@ -46,6 +48,8 @@ import org.springframework.data.domain.PageRequest;
     AirportMapperImpl.class,
     AirlineService.class,
     AirlineMapperImpl.class,
+    AircraftTypeService.class,
+    AircraftTypeMapperImpl.class,
     CityService.class,
     CityMapperImpl.class,
     MoneyMapperImpl.class
@@ -74,6 +78,7 @@ class FlightRepositoryTest {
             assertThat(Hibernate.isInitialized(flight.getArrivalAirport().getCity()))
                     .isTrue();
             assertThat(Hibernate.isInitialized(flight.getAirline())).isTrue();
+            assertThat(Hibernate.isInitialized(flight.getAircraftType())).isTrue();
         });
     }
 
@@ -112,6 +117,8 @@ class FlightRepositoryTest {
             assertThat(flight.arrivalAirport().iataCode()).isEqualTo("OTP");
             assertThat(flight.arrivalAirport().city().cityName()).isEqualTo("Bucuresti");
             assertThat(flight.airline().name()).isEqualTo("Tarom");
+            // V15 gave the seed flights an aircraft type; the search fetches it with the flight
+            assertThat(flight.aircraftType().icaoCode()).isEqualTo("B738");
         });
     }
 
