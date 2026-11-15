@@ -41,11 +41,11 @@ class CityServiceTest {
     @Test
     void findAllReturnsTheRequestedPageOrderedById() {
         // whatever sort the client asks for, the page is read in id order
-        Pageable byId = PageRequest.of(0, 2, Sort.by("cityId"));
+        Pageable byId = PageRequest.of(0, 2, Sort.by("id"));
         when(cityRepository.findAll(byId))
                 .thenReturn(new PageImpl<>(List.of(new City(12L, "Bucuresti"), london), byId, 3));
 
-        Page<CityResponse> page = cityService.findAll(PageRequest.of(0, 2, Sort.by("cityName")));
+        Page<CityResponse> page = cityService.findAll(PageRequest.of(0, 2, Sort.by("name")));
 
         assertThat(page.getContent())
                 .containsExactly(new CityResponse(12L, "Bucuresti"), new CityResponse(21L, "London"));
@@ -70,14 +70,14 @@ class CityServiceTest {
 
     @Test
     void getByNameIgnoresCaseAndSurroundingWhitespace() {
-        when(cityRepository.findByCityNameKey("london")).thenReturn(Optional.of(london));
+        when(cityRepository.findByNameKey("london")).thenReturn(Optional.of(london));
 
         assertThat(cityService.getByName("  LONDON ")).isSameAs(london);
     }
 
     @Test
     void getByNameThrowsNotFoundWithTheNameAsGiven() {
-        when(cityRepository.findByCityNameKey("paris")).thenReturn(Optional.empty());
+        when(cityRepository.findByNameKey("paris")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> cityService.getByName("Paris"))
                 .isInstanceOf(ResourceNotFoundException.class)
@@ -86,18 +86,18 @@ class CityServiceTest {
 
     @Test
     void createSavesTheCityWithItsNameKey() {
-        when(cityRepository.findByCityNameKey("paris")).thenReturn(Optional.empty());
+        when(cityRepository.findByNameKey("paris")).thenReturn(Optional.empty());
         when(cityRepository.save(any(City.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         CityResponse created = cityService.create(new CityRequest("Paris"));
 
         assertThat(created).isEqualTo(new CityResponse(null, "Paris"));
-        verify(cityRepository).save(argThat(city -> "paris".equals(city.getCityNameKey())));
+        verify(cityRepository).save(argThat(city -> "paris".equals(city.getNameKey())));
     }
 
     @Test
     void createRejectsANameThatDiffersOnlyByCase() {
-        when(cityRepository.findByCityNameKey("london")).thenReturn(Optional.of(london));
+        when(cityRepository.findByNameKey("london")).thenReturn(Optional.of(london));
 
         assertThatThrownBy(() -> cityService.create(new CityRequest("LONDON")))
                 .isInstanceOf(ResourceAlreadyExistsException.class)
@@ -108,22 +108,22 @@ class CityServiceTest {
     @Test
     void updateMayChangeTheCaseOfItsOwnName() {
         when(cityRepository.findById(21L)).thenReturn(Optional.of(london));
-        when(cityRepository.findByCityNameKey("london")).thenReturn(Optional.of(london));
+        when(cityRepository.findByNameKey("london")).thenReturn(Optional.of(london));
 
         CityResponse updated = cityService.update(21L, new CityRequest("LONDON"));
 
         assertThat(updated).isEqualTo(new CityResponse(21L, "LONDON"));
-        assertThat(london.getCityNameKey()).isEqualTo("london");
+        assertThat(london.getNameKey()).isEqualTo("london");
     }
 
     @Test
     void updateRejectsTheNameOfAnotherCity() {
         when(cityRepository.findById(21L)).thenReturn(Optional.of(london));
-        when(cityRepository.findByCityNameKey("bucuresti")).thenReturn(Optional.of(new City(12L, "Bucuresti")));
+        when(cityRepository.findByNameKey("bucuresti")).thenReturn(Optional.of(new City(12L, "Bucuresti")));
 
         assertThatThrownBy(() -> cityService.update(21L, new CityRequest("Bucuresti")))
                 .isInstanceOf(ResourceAlreadyExistsException.class);
-        assertThat(london.getCityName()).isEqualTo("London");
+        assertThat(london.getName()).isEqualTo("London");
     }
 
     @Test

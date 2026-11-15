@@ -31,10 +31,10 @@ public class Airport {
 
     /** Unique (V5). */
     @Column(name = "airport_iata_code", nullable = false, unique = true, length = 3)
-    private String airportIataCode;
+    private String iataCode;
 
     @Column(name = "airport_name", nullable = false)
-    private String airportName;
+    private String name;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "city_id", nullable = false)
@@ -50,10 +50,10 @@ public class Airport {
     @Setter(AccessLevel.NONE)
     private long version;
 
-    public Airport(Long id, String airportIataCode, String airportName, City city, ZoneId timeZone) {
+    public Airport(Long id, String iataCode, String name, City city, ZoneId timeZone) {
         this.id = id;
-        this.airportIataCode = airportIataCode;
-        this.airportName = airportName;
+        this.iataCode = iataCode;
+        this.name = name;
         this.city = city;
         this.timeZone = timeZone;
     }

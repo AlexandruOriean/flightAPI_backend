@@ -21,8 +21,8 @@ interface AirportRepository extends JpaRepository<Airport, Long> {
 
     /** The city is lazy; load it in the same query. */
     @EntityGraph(attributePaths = "city")
-    Optional<Airport> findByAirportIataCode(String airportIataCode);
+    Optional<Airport> findByIataCode(String iataCode);
 
-    @Query("select a.airportName from Airport a order by a.airportName")
+    @Query("select a.name from Airport a order by a.name")
     List<String> findAllNames();
 }

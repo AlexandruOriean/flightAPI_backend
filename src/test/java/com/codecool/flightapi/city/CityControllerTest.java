@@ -52,7 +52,7 @@ class CityControllerTest {
         mockMvc.perform(get("/api/v1/cities"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(21))
-                .andExpect(jsonPath("$.content[0].cityName").value("London"));
+                .andExpect(jsonPath("$.content[0].name").value("London"));
     }
 
     @Test
@@ -62,7 +62,7 @@ class CityControllerTest {
 
         mockMvc.perform(get("/api/v1/cities/{id}", 21))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.cityName").value("London"));
+                .andExpect(jsonPath("$.name").value("London"));
     }
 
     @Test
@@ -73,7 +73,7 @@ class CityControllerTest {
         mockMvc.perform(post("/api/v1/cities")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"cityName\":\"London\"}"))
+                        .content("{\"name\":\"London\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "http://localhost/api/v1/cities/21"));
     }
@@ -84,9 +84,9 @@ class CityControllerTest {
         mockMvc.perform(post("/api/v1/cities")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"cityName\":\"" + "x".repeat(256) + "\"}"))
+                        .content("{\"name\":\"" + "x".repeat(256) + "\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors[0].field").value("cityName"));
+                .andExpect(jsonPath("$.errors[0].field").value("name"));
         mockMvc.perform(post("/api/v1/cities")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -103,7 +103,7 @@ class CityControllerTest {
         mockMvc.perform(put("/api/v1/cities/{id}", 21)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"cityName\":\"London\"}"))
+                        .content("{\"name\":\"London\"}"))
                 .andExpect(status().isOk());
     }
 

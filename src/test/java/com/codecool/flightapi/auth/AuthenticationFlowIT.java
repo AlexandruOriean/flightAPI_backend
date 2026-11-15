@@ -198,7 +198,7 @@ class AuthenticationFlowIT {
         mockMvc.perform(post("/api/v1/cities")
                         .header(HttpHeaders.AUTHORIZATION, bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"cityName\":\"Hacked\"}"))
+                        .content("{\"name\":\"Hacked\"}"))
                 .andExpect(status().isForbidden());
     }
 
@@ -356,14 +356,14 @@ class AuthenticationFlowIT {
         mockMvc.perform(get("/api/v1/airports").header(HttpHeaders.AUTHORIZATION, bearer(userToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].iataCode").value("OTP"))
-                .andExpect(jsonPath("$.content[0].city.cityName").value("Bucuresti"))
+                .andExpect(jsonPath("$.content[0].city.name").value("Bucuresti"))
                 .andExpect(jsonPath("$.page.totalElements").value(4));
     }
 
     @Test
     @DisplayName("lists are paged: ?page and ?size select the slice, a huge size is capped, sort is ignored")
     void listsArePaged() throws Exception {
-        mockMvc.perform(get("/api/v1/airports?page=1&size=3&sort=airportName,desc")
+        mockMvc.perform(get("/api/v1/airports?page=1&size=3&sort=name,desc")
                         .header(HttpHeaders.AUTHORIZATION, bearer(userToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
@@ -395,7 +395,7 @@ class AuthenticationFlowIT {
         mockMvc.perform(post("/api/v1/cities")
                         .header(HttpHeaders.AUTHORIZATION, bearer(userToken))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"cityName\":\"Cluj\"}"))
+                        .content("{\"name\":\"Cluj\"}"))
                 .andExpect(status().isForbidden())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.status").value(403));
@@ -407,9 +407,9 @@ class AuthenticationFlowIT {
         String location = mockMvc.perform(post("/api/v1/cities")
                         .header(HttpHeaders.AUTHORIZATION, bearer(adminToken))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"cityId\":1,\"cityName\":\"Cluj\"}"))
+                        .content("{\"id\":1,\"name\":\"Cluj\"}"))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.cityName").value("Cluj"))
+                .andExpect(jsonPath("$.name").value("Cluj"))
                 // the client-supplied id must not overwrite the existing city 1
                 .andExpect(jsonPath("$.id").value(not(1)))
                 .andReturn()
@@ -420,9 +420,9 @@ class AuthenticationFlowIT {
 
         mockMvc.perform(get(path).header(HttpHeaders.AUTHORIZATION, bearer(adminToken)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.cityName").value("Cluj"));
+                .andExpect(jsonPath("$.name").value("Cluj"));
         mockMvc.perform(get("/api/v1/cities/1").header(HttpHeaders.AUTHORIZATION, bearer(adminToken)))
-                .andExpect(jsonPath("$.cityName").value("Bucuresti"));
+                .andExpect(jsonPath("$.name").value("Bucuresti"));
 
         mockMvc.perform(delete(path).header(HttpHeaders.AUTHORIZATION, bearer(adminToken)))
                 .andExpect(status().isNoContent());

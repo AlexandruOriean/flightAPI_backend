@@ -41,12 +41,12 @@ interface FlightRepository extends JpaRepository<Flight, Long> {
               left join fetch f.airline
               left join fetch f.aircraftType
             where f.departureAt >= :from and f.departureAt < :until
-              and (dep.airportIataCode = :fromCode
-                   or lower(dep.airportName) like :fromPattern escape '\\'
-                   or lower(depCity.cityName) like :fromPattern escape '\\')
-              and (arr.airportIataCode = :toCode
-                   or lower(arr.airportName) like :toPattern escape '\\'
-                   or lower(arrCity.cityName) like :toPattern escape '\\')
+              and (dep.iataCode = :fromCode
+                   or lower(dep.name) like :fromPattern escape '\\'
+                   or lower(depCity.name) like :fromPattern escape '\\')
+              and (arr.iataCode = :toCode
+                   or lower(arr.name) like :toPattern escape '\\'
+                   or lower(arrCity.name) like :toPattern escape '\\')
             order by f.departureAt
             """)
     List<Flight> search(

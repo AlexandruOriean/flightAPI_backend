@@ -21,27 +21,24 @@ class AirportRepositoryTest {
     @Test
     @DisplayName("IATA lookup loads the airport with its city in the same query")
     void findsAirportByIataCodeWithCity() {
-        Airport airport = airportRepository.findByAirportIataCode("OTP").orElseThrow();
+        Airport airport = airportRepository.findByIataCode("OTP").orElseThrow();
 
-        assertThat(airport.getAirportName()).isEqualTo("Henri Coanda International Airport");
+        assertThat(airport.getName()).isEqualTo("Henri Coanda International Airport");
         assertThat(Hibernate.isInitialized(airport.getCity())).isTrue();
-        assertThat(airport.getCity().getCityName()).isEqualTo("Bucuresti");
+        assertThat(airport.getCity().getName()).isEqualTo("Bucuresti");
     }
 
     @Test
     @DisplayName("IATA lookup finds nothing for an unknown code")
     void unknownIataCodeIsEmpty() {
-        assertThat(airportRepository.findByAirportIataCode("XXX")).isEmpty();
+        assertThat(airportRepository.findByIataCode("XXX")).isEmpty();
     }
 
     @ParameterizedTest
     @CsvSource({"CDG, Charles de Gaulle International Airport", "TSR, Timisoara Traian Vuia Airport"})
     @DisplayName("corrected seed IATA codes resolve to the right airport")
     void correctedIataCodesResolve(String iataCode, String airportName) {
-        assertThat(airportRepository
-                        .findByAirportIataCode(iataCode)
-                        .orElseThrow()
-                        .getAirportName())
+        assertThat(airportRepository.findByIataCode(iataCode).orElseThrow().getName())
                 .isEqualTo(airportName);
     }
 
@@ -49,7 +46,7 @@ class AirportRepositoryTest {
     @ValueSource(strings = {"CHD", "TVT"})
     @DisplayName("the wrong IATA codes from the original seed data are gone")
     void wrongSeedIataCodesAreGone(String wrongCode) {
-        assertThat(airportRepository.findByAirportIataCode(wrongCode)).isEmpty();
+        assertThat(airportRepository.findByIataCode(wrongCode)).isEmpty();
     }
 
     @Test

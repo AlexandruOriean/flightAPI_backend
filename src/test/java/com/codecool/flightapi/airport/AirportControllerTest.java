@@ -56,7 +56,7 @@ class AirportControllerTest {
         mockMvc.perform(get("/api/v1/airports"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].iataCode").value("OTP"))
-                .andExpect(jsonPath("$.content[0].city.cityName").value("Bucuresti"))
+                .andExpect(jsonPath("$.content[0].city.name").value("Bucuresti"))
                 .andExpect(jsonPath("$.content[0].timeZone").value("Europe/Bucharest"));
     }
 

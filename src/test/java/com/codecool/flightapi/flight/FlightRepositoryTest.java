@@ -116,7 +116,7 @@ class FlightRepositoryTest {
         assertThat(flights).singleElement().satisfies(flight -> {
             assertThat(flight.departureAirport().iataCode()).isEqualTo("LHR");
             assertThat(flight.arrivalAirport().iataCode()).isEqualTo("OTP");
-            assertThat(flight.arrivalAirport().city().cityName()).isEqualTo("Bucuresti");
+            assertThat(flight.arrivalAirport().city().name()).isEqualTo("Bucuresti");
             assertThat(flight.airline().name()).isEqualTo("Tarom");
             // V15 gave the seed flights an aircraft type; the search fetches it with the flight
             assertThat(flight.aircraftType().icaoCode()).isEqualTo("B738");
@@ -162,7 +162,7 @@ class FlightRepositoryTest {
                 Limit.of(2));
 
         assertThat(flights)
-                .extracting(flight -> flight.getDepartureAirport().getAirportIataCode())
+                .extracting(flight -> flight.getDepartureAirport().getIataCode())
                 .containsExactly("OTP", "OTP");
     }
 

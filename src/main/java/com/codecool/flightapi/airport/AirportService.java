@@ -54,7 +54,7 @@ public class AirportService {
      */
     public Airport getByIataCode(String iataCode) {
         return airportRepository
-                .findByAirportIataCode(normalizeIataCode(iataCode))
+                .findByIataCode(normalizeIataCode(iataCode))
                 .orElseThrow(() -> new ResourceNotFoundException("Airport", "IATA code", iataCode));
     }
 
@@ -97,7 +97,7 @@ public class AirportService {
 
     private void requireIataCodeAvailable(String iataCode, Long ownId) {
         airportRepository
-                .findByAirportIataCode(normalizeIataCode(iataCode))
+                .findByIataCode(normalizeIataCode(iataCode))
                 .filter(existing -> !existing.getId().equals(ownId))
                 .ifPresent(existing -> {
                     throw new ResourceAlreadyExistsException(
