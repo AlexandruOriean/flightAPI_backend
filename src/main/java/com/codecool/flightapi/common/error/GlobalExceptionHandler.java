@@ -39,6 +39,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.NOT_FOUND, "Resource not found", ex.getMessage());
     }
 
+    @ExceptionHandler(InvalidRequestException.class)
+    ProblemDetail handleInvalidRequest(InvalidRequestException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "Bad request", ex.getMessage());
+    }
+
     @ExceptionHandler(ResourceAlreadyExistsException.class)
     ProblemDetail handleAlreadyExists(ResourceAlreadyExistsException ex) {
         return problem(HttpStatus.CONFLICT, "Resource already exists", ex.getMessage());

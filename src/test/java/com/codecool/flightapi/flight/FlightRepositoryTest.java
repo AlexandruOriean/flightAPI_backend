@@ -9,6 +9,8 @@ import com.codecool.flightapi.airport.AirportService;
 import com.codecool.flightapi.city.CityMapperImpl;
 import com.codecool.flightapi.city.CityService;
 import com.codecool.flightapi.common.money.MoneyMapperImpl;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +22,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
@@ -124,10 +127,29 @@ class FlightRepositoryTest {
     }
 
     @ParameterizedTest(name = "{0} -> {1}")
-    @CsvSource({"%, %", "_, _", "'%', OTP"})
+    @CsvSource({"%%%, %%%", "___, ___", "'%%%', OTP"})
     @DisplayName("LIKE wildcards in the search terms match literally, not everything")
     void wildcardsAreEscaped(String from, String to) {
         assertThat(flightService.search(from, to, SEEDED_FLIGHT_DATE)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("the search query returns at most the limit, earliest departures first")
+    void searchQueryAppliesTheLimit() {
+        Instant dayStart = Instant.parse("2020-11-01T00:00:00Z");
+        // 'airport' matches every seeded airport, so all five seed flights fall in the window
+        List<Flight> flights = flightRepository.search(
+                "AIRPORT",
+                "%airport%",
+                "AIRPORT",
+                "%airport%",
+                dayStart,
+                dayStart.plus(Duration.ofDays(1)),
+                Limit.of(2));
+
+        assertThat(flights)
+                .extracting(flight -> flight.getDepartureAirport().getAirportIataCode())
+                .containsExactly("OTP", "OTP");
     }
 
     @Test

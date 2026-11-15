@@ -3,6 +3,7 @@ package com.codecool.flightapi.flight;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -33,6 +34,7 @@ interface FlightRepository extends JpaRepository<Flight, Long> {
      * @param toPattern lower-case LIKE pattern ({@code \} escapes) for the arrival airport/city name
      * @param from start of the departure window, inclusive
      * @param until end of the departure window, exclusive
+     * @param limit maximum number of flights returned, earliest departures first
      */
     @Query("""
             select f from Flight f
@@ -54,5 +56,6 @@ interface FlightRepository extends JpaRepository<Flight, Long> {
             @Param("toCode") String toCode,
             @Param("toPattern") String toPattern,
             @Param("from") Instant from,
-            @Param("until") Instant until);
+            @Param("until") Instant until,
+            Limit limit);
 }

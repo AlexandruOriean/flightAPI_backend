@@ -231,9 +231,10 @@ class AuthenticationFlowIT {
                 "/api/v1/flights?from=&to=Henri&date=2020-11-01",
                 "/api/v1/flights?from=London&to= &date=2020-11-01",
                 "/api/v1/flights?from=London&date=2020-11-01",
-                "/api/v1/flights?from=London&to=Henri"
+                "/api/v1/flights?from=London&to=Henri",
+                "/api/v1/flights?from=Lo&to=Henri&date=2020-11-01"
             })
-    @DisplayName("flight search with a missing or blank parameter -> 400 problem+json, not every flight")
+    @DisplayName("flight search with a missing, blank or too short parameter -> 400 problem+json, not every flight")
     void incompleteFlightSearchIsBadRequest(String uri) throws Exception {
         mockMvc.perform(get(uri))
                 .andExpect(status().isBadRequest())
