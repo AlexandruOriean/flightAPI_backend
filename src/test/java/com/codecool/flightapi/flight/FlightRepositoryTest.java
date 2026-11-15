@@ -33,6 +33,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * The flight search query against the real Flyway schema and seed data (embedded H2), called through
@@ -179,12 +180,15 @@ class FlightRepositoryTest {
         Airport arrivalAirport = arrivalIataCode.equals("OTP") ? otopeni : seeded.getDepartureAirport();
         Flight invalid = new Flight(
                 null,
-                departure,
-                arrival,
+                seeded.getDepartureAt(),
+                seeded.getArrivalAt(),
                 new Money(price, Currency.getInstance("EUR")),
                 otopeni,
                 arrivalAirport,
                 seeded.getAirline());
+        // past Flight#reschedule, as a writer that bypasses the entity (SQL, another service) could
+        ReflectionTestUtils.setField(invalid, "departureAt", departure);
+        ReflectionTestUtils.setField(invalid, "arrivalAt", arrival);
 
         assertThatThrownBy(() -> flightRepository.saveAndFlush(invalid))
                 .as(rule)

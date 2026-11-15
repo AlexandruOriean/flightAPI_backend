@@ -17,6 +17,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.Instant;
+import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -34,12 +35,14 @@ public class Flight {
     @Column(name = "flight_id")
     private Long id;
 
-    /** Point in time; shown in the departure airport's time zone. */
+    /** Point in time; shown in the departure airport's time zone. Changed only by {@link #reschedule}. */
     @Column(name = "departure_at", nullable = false)
+    @Setter(AccessLevel.NONE)
     private Instant departureAt;
 
-    /** Point in time; shown in the arrival airport's time zone. */
+    /** Point in time; shown in the arrival airport's time zone. Changed only by {@link #reschedule}. */
     @Column(name = "arrival_at", nullable = false)
+    @Setter(AccessLevel.NONE)
     private Instant arrivalAt;
 
     @Embedded
@@ -80,6 +83,7 @@ public class Flight {
             Airport departureAirport,
             Airport arrivalAirport,
             Airline airline) {
+        requireArrivalAfterDeparture(departureAt, arrivalAt);
         this.id = id;
         this.departureAt = departureAt;
         this.arrivalAt = arrivalAt;
@@ -87,6 +91,27 @@ public class Flight {
         this.departureAirport = departureAirport;
         this.arrivalAirport = arrivalAirport;
         this.airline = airline;
+    }
+
+    /**
+     * Sets both times together, so a flight never arrives before (or when) it departs. Requests are validated
+     * before they get here, and the {@code V12} CHECK constraint backs this up in the database.
+     *
+     * @throws IllegalArgumentException if arrival is not after departure
+     */
+    public void reschedule(Instant departureAt, Instant arrivalAt) {
+        requireArrivalAfterDeparture(departureAt, arrivalAt);
+        this.departureAt = departureAt;
+        this.arrivalAt = arrivalAt;
+    }
+
+    private static void requireArrivalAfterDeparture(Instant departureAt, Instant arrivalAt) {
+        Objects.requireNonNull(departureAt, "departureAt");
+        Objects.requireNonNull(arrivalAt, "arrivalAt");
+        if (!arrivalAt.isAfter(departureAt)) {
+            throw new IllegalArgumentException(
+                    "Arrival " + arrivalAt + " must be after departure " + departureAt + ".");
+        }
     }
 
     /** Identity is the database id; a new, unsaved flight only equals itself. Safe with Hibernate proxies. */

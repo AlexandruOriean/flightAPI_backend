@@ -109,6 +109,7 @@ public class FlightService {
     public FlightResponse update(Long id, FlightRequest request) {
         Flight flight = getById(id);
         flightMapper.update(request, flight);
+        flight.reschedule(request.departure().toInstant(), request.arrival().toInstant());
         resolveReferences(request, flight);
         return flightMapper.toResponse(flight);
     }
