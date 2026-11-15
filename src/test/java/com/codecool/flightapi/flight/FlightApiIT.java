@@ -1,6 +1,8 @@
 package com.codecool.flightapi.flight;
 
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.nullValue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -8,6 +10,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +20,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -63,8 +68,54 @@ class FlightApiIT {
                 .andExpect(jsonPath("$.departureAirport.city.cityName").value("London"))
                 .andExpect(jsonPath("$.arrivalAirport.timeZone").value("Europe/Bucharest"))
                 .andExpect(jsonPath("$.airline.icaoCode").value("ROT"))
+                .andExpect(jsonPath("$.aircraftType.icaoCode").value("B738"))
+                .andExpect(jsonPath("$.aircraftType.model").value("737-800"))
                 .andExpect(jsonPath("$.departureDate").doesNotExist())
                 .andExpect(jsonPath("$.flight_id").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("POST flight with an aircraft type code -> 201 with the type; unknown code -> 404")
+    void createFlightWithAircraftType() throws Exception {
+        mockMvc.perform(post("/api/v1/flights")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(NEW_FLIGHT.replace("\"price\"", "\"aircraftTypeCode\":\"A320\",\"price\"")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.aircraftType.icaoCode").value("A320"))
+                .andExpect(jsonPath("$.aircraftType.manufacturer").value("Airbus"));
+
+        mockMvc.perform(post("/api/v1/flights")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(NEW_FLIGHT.replace("\"price\"", "\"aircraftTypeCode\":\"ZZZZ\",\"price\"")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("Aircraft type with ICAO code 'ZZZZ' was not found"));
+    }
+
+    @Test
+    @DisplayName("POST flight without an aircraft type -> 201 with aircraftType null")
+    void createFlightWithoutAircraftType() throws Exception {
+        mockMvc.perform(post("/api/v1/flights")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(NEW_FLIGHT))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.aircraftType").value(nullValue()));
+    }
+
+    @Test
+    @DisplayName("DELETE an aircraft type that flights use -> 409 problem+json")
+    // committed for real: the foreign key is only checked when the delete is flushed at commit
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void deleteUsedAircraftTypeIsConflict() throws Exception {
+        String b738 = mockMvc.perform(get("/api/v1/aircraft-types?size=100"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Integer id = JsonPath.<List<Integer>>read(b738, "$.content[?(@.icaoCode == 'B738')].id")
+                .get(0);
+
+        mockMvc.perform(delete("/api/v1/aircraft-types/{id}", id))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
     }
 
     @Test

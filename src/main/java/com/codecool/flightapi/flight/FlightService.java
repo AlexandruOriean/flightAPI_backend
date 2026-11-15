@@ -1,5 +1,6 @@
 package com.codecool.flightapi.flight;
 
+import com.codecool.flightapi.aircraft.AircraftTypeService;
 import com.codecool.flightapi.airline.AirlineService;
 import com.codecool.flightapi.airport.AirportService;
 import com.codecool.flightapi.common.error.InvalidRequestException;
@@ -44,6 +45,7 @@ public class FlightService {
     private final FlightMapper flightMapper;
     private final AirportService airportService;
     private final AirlineService airlineService;
+    private final AircraftTypeService aircraftTypeService;
 
     /** One page of flights, ordered by departure time. */
     public Page<FlightResponse> findAll(Pageable pageable) {
@@ -93,7 +95,7 @@ public class FlightService {
     /**
      * Creates a new flight.
      *
-     * @throws ResourceNotFoundException if an airport or the airline does not exist
+     * @throws ResourceNotFoundException if an airport, the airline or the aircraft type does not exist
      */
     @Transactional
     public FlightResponse create(FlightRequest request) {
@@ -102,7 +104,7 @@ public class FlightService {
         return flightMapper.toResponse(flightRepository.save(flight));
     }
 
-    /** Replaces times, price, route and airline. */
+    /** Replaces times, price, route, airline and aircraft type (none if the request has no code). */
     @Transactional
     public FlightResponse update(Long id, FlightRequest request) {
         Flight flight = getById(id);
@@ -124,6 +126,10 @@ public class FlightService {
         flight.setDepartureAirport(airportService.getByIataCode(request.departureAirportCode()));
         flight.setArrivalAirport(airportService.getByIataCode(request.arrivalAirportCode()));
         flight.setAirline(airlineService.getByIcaoCode(request.airlineCode()));
+        flight.setAircraftType(
+                request.aircraftTypeCode() == null
+                        ? null
+                        : aircraftTypeService.getByIcaoCode(request.aircraftTypeCode()));
     }
 
     private static boolean departsOn(Flight flight, LocalDate date) {

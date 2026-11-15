@@ -88,7 +88,7 @@ class AccessRulesIT {
             anonymous   | POST   | /api/v1/flights?from=London            | 401
             anonymous   | GET    | /api/v1/flights/London/Henri/2020-11-01 | 401
             anonymous   | POST   | /users/login                           | 401
-            anonymous   | GET    | /api/v1/airplanes/1                    | 401
+            anonymous   | GET    | /api/v1/aircraft-types/1                    | 401
             anonymous   | GET    | /api/v1/airports/names                 | 401
             anonymous   | POST   | /api/v1/cities                         | 401
             anonymous   | GET    | /actuator/env                          | 401
@@ -96,7 +96,7 @@ class AccessRulesIT {
             anonymous   | GET    | /swagger-ui.html                       | 401
             anonymous   | GET    | /not/a/known/path                      | 401
             # --- signed-in user: reads yes, writes and admin reads no ---
-            user        | GET    | /api/v1/airplanes/1                    | 200
+            user        | GET    | /api/v1/aircraft-types/1                    | 200
             user        | GET    | /api/v1/airports/names                 | 200
             user        | GET    | /api/v1/flights                        | 403
             user        | GET    | /api/v1/flights?page=0                 | 403

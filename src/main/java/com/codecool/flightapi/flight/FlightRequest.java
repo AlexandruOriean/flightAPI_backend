@@ -16,6 +16,7 @@ import java.time.OffsetDateTime;
  * @param airlineCode ICAO airline designator, e.g. {@code ROT}
  * @param departure with offset, e.g. {@code 2026-12-01T09:30:00+02:00}
  * @param arrival with offset, e.g. {@code 2026-12-01T11:05:00Z}
+ * @param aircraftTypeCode ICAO aircraft type designator, e.g. {@code A320}; optional
  */
 public record FlightRequest(
         @NotNull @Pattern(regexp = "[A-Z]{3}", message = "must be 3 upper-case letters") String departureAirportCode,
@@ -26,7 +27,9 @@ public record FlightRequest(
 
         @NotNull OffsetDateTime departure,
         @NotNull OffsetDateTime arrival,
-        @NotNull @Valid MoneyDto price) {
+        @NotNull @Valid MoneyDto price,
+
+        @Pattern(regexp = "[A-Z0-9]{2,4}", message = "must be 2 to 4 upper-case letters or digits") String aircraftTypeCode) {
 
     @AssertTrue(message = "departure and arrival airport must differ") public boolean isDifferentAirports() {
         return departureAirportCode == null || !departureAirportCode.equals(arrivalAirportCode);

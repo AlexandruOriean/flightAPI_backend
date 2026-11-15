@@ -40,7 +40,7 @@ class DevToolsSecurityIT {
     @Test
     @DisplayName("dev: the API still requires authentication and denies framing")
     void apiRulesAreUnchangedInDev() throws Exception {
-        MvcResult result = mockMvc.perform(get("/api/v1/airplanes/1"))
+        MvcResult result = mockMvc.perform(get("/api/v1/aircraft-types/1"))
                 .andExpect(header().string("X-Frame-Options", "DENY"))
                 .andReturn();
         assertThat(result.getResponse().getStatus()).isEqualTo(401);

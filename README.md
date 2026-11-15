@@ -1,7 +1,7 @@
 # Flight API
 
-REST API for searching flights and managing the flight catalogue: flights, airports, airlines, airplanes and
-cities, plus user registration and login. Built with Spring Boot 4 on Java 21, PostgreSQL in production and
+REST API for searching flights and managing the flight catalogue: flights, airports, airlines, aircraft types
+and cities, plus user registration and login. Built with Spring Boot 4 on Java 21, PostgreSQL in production and
 H2 for local development.
 
 - Anyone can search flights by route and date and see a flight's details.
@@ -113,11 +113,13 @@ Login and registration are rate-limited per client IP; over the limit the API an
 | `GET /api/v1/flights?from=OTP&to=LHR&date=2026-01-15` – search by IATA code or part of an airport/city name (at least 3 characters), departure date in the airport's local time | anyone |
 | `GET /api/v1/flights/{id}` | anyone |
 | `GET /api/v1/flights?page=0&size=20` – all flights, paged | admin |
-| `GET /api/v1/{airports,airlines,airplanes,cities}` (paged), `/{id}`, `GET /api/v1/airports/iata/{code}`, `GET /api/v1/airports/names` | signed-in users |
-| `POST`, `PUT /{id}`, `DELETE /{id}` on `/api/v1/{flights,airports,airlines,airplanes,cities}` | admin |
+| `GET /api/v1/{airports,airlines,aircraft-types,cities}` (paged), `/{id}`, `GET /api/v1/airports/iata/{code}`, `GET /api/v1/airports/names` | signed-in users |
+| `POST`, `PUT /{id}`, `DELETE /{id}` on `/api/v1/{flights,airports,airlines,aircraft-types,cities}` | admin |
 
 Lists are paged with `?page=0&size=20` (maximum 100) and return `{"content": [...], "page": {...}}`.
 Flight times are ISO date-times in each airport's local time, prices `{"amount": 35.00, "currency": "GBP"}`.
+Flights reference airports by IATA code (`OTP`), airlines by ICAO code (`ROT`) and, optionally, an aircraft type
+by its ICAO type designator (`A320`, `B738`); an aircraft type cannot be deleted while flights use it.
 
 ## Build and test
 
