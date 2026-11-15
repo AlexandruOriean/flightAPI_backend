@@ -49,7 +49,13 @@ jobs:
 
       # -Pprod scans exactly what ships (no dev-only H2). Fails on CVSS >= 7.
       - name: Scan dependencies
-        run: ./mvnw -B -Pprod,security-scan -DskipTests verify
+        run: |
+          # Dependabot may expose an unset secret as an empty variable.
+          # dependency-check rejects an empty NVD API key.
+          if [[ -z "$NVD_API_KEY" ]]; then
+            unset NVD_API_KEY
+          fi
+          ./mvnw -B -Pprod,security-scan -DskipTests verify
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
