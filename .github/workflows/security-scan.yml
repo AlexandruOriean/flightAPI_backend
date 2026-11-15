@@ -2,7 +2,7 @@ name: Security scan
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
     paths:
       - pom.xml
