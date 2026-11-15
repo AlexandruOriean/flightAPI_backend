@@ -12,39 +12,41 @@ import org.springframework.transaction.annotation.Transactional;
 public class AirplaneService {
 
     private final AirplaneRepository airplaneRepository;
+    private final AirplaneMapper airplaneMapper;
 
-    public List<Airplane> findAll() {
-        return airplaneRepository.findAll();
+    public List<AirplaneResponse> findAll() {
+        return airplaneRepository.findAll().stream()
+                .map(airplaneMapper::toResponse)
+                .toList();
     }
 
     /**
-     * Returns the entity with the given id.
+     * Returns the airplane with the given id.
      *
-     * @throws com.codecool.flightapi.common.error.ResourceNotFoundException if absent
+     * @throws ResourceNotFoundException if absent
      */
-    public Airplane findById(Long id) {
-        return airplaneRepository.findById(id).orElseThrow(() -> ResourceNotFoundException.byId("Airplane", id));
-    }
-
-    /** Creates a new airplane; any client-supplied id is ignored. */
-    @Transactional
-    public Airplane create(Airplane airplane) {
-        airplane.setId(null); // never let a client-supplied id overwrite an existing row
-        return airplaneRepository.save(airplane);
+    public AirplaneResponse findById(Long id) {
+        return airplaneMapper.toResponse(getById(id));
     }
 
     @Transactional
-    public Airplane update(Long id, Airplane changes) {
-        Airplane airplane = findById(id);
-        airplane.setManufacturer(changes.getManufacturer());
-        airplane.setModel(changes.getModel());
-        airplane.setNumberOfSeats(changes.getNumberOfSeats());
-        airplane.setSpeed(changes.getSpeed());
-        return airplane;
+    public AirplaneResponse create(AirplaneRequest request) {
+        return airplaneMapper.toResponse(airplaneRepository.save(airplaneMapper.toEntity(request)));
+    }
+
+    @Transactional
+    public AirplaneResponse update(Long id, AirplaneRequest request) {
+        Airplane airplane = getById(id);
+        airplaneMapper.update(request, airplane);
+        return airplaneMapper.toResponse(airplane);
     }
 
     @Transactional
     public void delete(Long id) {
-        airplaneRepository.delete(findById(id));
+        airplaneRepository.delete(getById(id));
+    }
+
+    private Airplane getById(Long id) {
+        return airplaneRepository.findById(id).orElseThrow(() -> ResourceNotFoundException.byId("Airplane", id));
     }
 }

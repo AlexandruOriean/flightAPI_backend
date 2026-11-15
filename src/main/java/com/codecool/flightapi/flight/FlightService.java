@@ -1,5 +1,7 @@
 package com.codecool.flightapi.flight;
 
+import com.codecool.flightapi.airline.AirlineService;
+import com.codecool.flightapi.airport.AirportService;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
 import java.time.LocalDate;
 import java.util.List;
@@ -14,26 +16,69 @@ import org.springframework.transaction.annotation.Transactional;
 public class FlightService {
 
     private final FlightRepository flightRepository;
+    private final FlightMapper flightMapper;
+    private final AirportService airportService;
+    private final AirlineService airlineService;
 
-    public List<Flight> findAll() {
-        return flightRepository.findAll();
+    public List<FlightResponse> findAll() {
+        return flightRepository.findAll().stream().map(flightMapper::toResponse).toList();
     }
 
     /**
-     * Returns the entity with the given id.
+     * Returns the flight with the given id.
      *
-     * @throws com.codecool.flightapi.common.error.ResourceNotFoundException if absent
+     * @throws ResourceNotFoundException if absent
      */
-    public Flight findById(Long id) {
-        return flightRepository.findById(id).orElseThrow(() -> ResourceNotFoundException.byId("Flight", id));
+    public FlightResponse findById(Long id) {
+        return flightMapper.toResponse(getById(id));
     }
 
     /**
      * Flights on {@code date} from one airport to another. Each airport is given either as its IATA code
      * ({@code OTP}) or as part of the airport or city name ({@code henri}, {@code London}), ignoring case.
      */
-    public List<Flight> search(String from, String to, LocalDate date) {
-        return flightRepository.search(iataCode(from), containsPattern(from), iataCode(to), containsPattern(to), date);
+    public List<FlightResponse> search(String from, String to, LocalDate date) {
+        return flightRepository
+                .search(iataCode(from), containsPattern(from), iataCode(to), containsPattern(to), date)
+                .stream()
+                .map(flightMapper::toResponse)
+                .toList();
+    }
+
+    /**
+     * Creates a new flight.
+     *
+     * @throws ResourceNotFoundException if an airport or the airline does not exist
+     */
+    @Transactional
+    public FlightResponse create(FlightRequest request) {
+        Flight flight = flightMapper.toEntity(request);
+        resolveReferences(request, flight);
+        return flightMapper.toResponse(flightRepository.save(flight));
+    }
+
+    /** Replaces schedule, price, route and airline. */
+    @Transactional
+    public FlightResponse update(Long id, FlightRequest request) {
+        Flight flight = getById(id);
+        flightMapper.update(request, flight);
+        resolveReferences(request, flight);
+        return flightMapper.toResponse(flight);
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        flightRepository.delete(getById(id));
+    }
+
+    private Flight getById(Long id) {
+        return flightRepository.findById(id).orElseThrow(() -> ResourceNotFoundException.byId("Flight", id));
+    }
+
+    private void resolveReferences(FlightRequest request, Flight flight) {
+        flight.setDepartureAirport(airportService.getByIataCode(request.departureAirportCode()));
+        flight.setArrivalAirport(airportService.getByIataCode(request.arrivalAirportCode()));
+        flight.setAirline(airlineService.getByIcaoCode(request.airlineCode()));
     }
 
     private static String iataCode(String term) {
@@ -48,27 +93,5 @@ public class FlightService {
                 .replace("%", "\\%")
                 .replace("_", "\\_");
         return "%" + escaped + "%";
-    }
-
-    /** Creates a new flight; any client-supplied id is ignored. */
-    @Transactional
-    public Flight create(Flight flight) {
-        flight.setFlight_id(null); // never let a client-supplied id overwrite an existing row
-        return flightRepository.save(flight);
-    }
-
-    @Transactional
-    public Flight update(Long id, Flight changes) {
-        Flight flight = findById(id);
-        flight.setDepartureDate(changes.getDepartureDate());
-        flight.setDepartureTime(changes.getDepartureTime());
-        flight.setArrivalTime(changes.getArrivalTime());
-        flight.setPrice(changes.getPrice());
-        return flight;
-    }
-
-    @Transactional
-    public void delete(Long id) {
-        flightRepository.delete(findById(id));
     }
 }
