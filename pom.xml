@@ -55,9 +55,9 @@
         <!-- Default for @{argLine}; JaCoCo fills it in, this keeps tests runnable when JaCoCo is skipped -->
         <argLine/>
 
-        <!-- Coverage quality gate (ratchet this up as tests are added) -->
+        <!-- Coverage quality gate: merged unit + integration line coverage (90% when raised; ratchet up, never down) -->
         <jacoco.merged.file>${project.build.directory}/jacoco-merged.exec</jacoco.merged.file>
-        <jacoco.min.line.coverage>0.60</jacoco.min.line.coverage>
+        <jacoco.min.line.coverage>0.85</jacoco.min.line.coverage>
 
         <!--
           SonarQube Cloud (https://sonarcloud.io). Analysis runs in CI after `verify`:
