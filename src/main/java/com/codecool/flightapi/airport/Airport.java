@@ -10,9 +10,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.ZoneId;
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -20,7 +20,6 @@ import lombok.Setter;
 @Entity
 @Table(name = "Airport")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor
 @Getter
 @Setter
 public class Airport {
@@ -44,6 +43,20 @@ public class Airport {
     /** IANA time zone, e.g. {@code Europe/Bucharest}; flight times are shown in it. */
     @Column(name = "time_zone", nullable = false, length = 64)
     private ZoneId timeZone;
+
+    /** Optimistic lock (V10): a concurrent update of the same row fails instead of silently overwriting it. */
+    @Version
+    @Column(name = "version", nullable = false)
+    @Setter(AccessLevel.NONE)
+    private long version;
+
+    public Airport(Long id, String airportIataCode, String airportName, City city, ZoneId timeZone) {
+        this.id = id;
+        this.airportIataCode = airportIataCode;
+        this.airportName = airportName;
+        this.city = city;
+        this.timeZone = timeZone;
+    }
 
     /** Identity is the database id; a new, unsaved airport only equals itself. Safe with Hibernate proxies. */
     @Override

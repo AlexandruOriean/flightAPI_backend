@@ -14,9 +14,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.Instant;
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -24,7 +24,6 @@ import lombok.Setter;
 @Entity
 @Table(name = "Flight")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor
 @Getter
 @Setter
 public class Flight {
@@ -60,6 +59,29 @@ public class Flight {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "airline_id", nullable = false)
     private Airline airline;
+
+    /** Optimistic lock (V10): a concurrent update of the same row fails instead of silently overwriting it. */
+    @Version
+    @Column(name = "version", nullable = false)
+    @Setter(AccessLevel.NONE)
+    private long version;
+
+    public Flight(
+            Long id,
+            Instant departureAt,
+            Instant arrivalAt,
+            Money price,
+            Airport departureAirport,
+            Airport arrivalAirport,
+            Airline airline) {
+        this.id = id;
+        this.departureAt = departureAt;
+        this.arrivalAt = arrivalAt;
+        this.price = price;
+        this.departureAirport = departureAirport;
+        this.arrivalAirport = arrivalAirport;
+        this.airline = airline;
+    }
 
     /** Identity is the database id; a new, unsaved flight only equals itself. Safe with Hibernate proxies. */
     @Override

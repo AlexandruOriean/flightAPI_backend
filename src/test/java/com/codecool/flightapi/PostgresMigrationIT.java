@@ -8,6 +8,7 @@ import com.codecool.flightapi.user.RoleName;
 import com.codecool.flightapi.user.RoleRepository;
 import java.time.LocalDate;
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationInfo;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,7 +50,13 @@ class PostgresMigrationIT {
     @DisplayName("all migrations are applied on PostgreSQL")
     void migrationsAreApplied() {
         assertThat(flyway.info().pending()).isEmpty();
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("9");
+        MigrationInfo[] all = flyway.info().all();
+        // the newest migration on the classpath is the one applied last, whatever its number
+        assertThat(flyway.info().current().getVersion()).isEqualTo(all[all.length - 1].getVersion());
+        assertThat(all)
+                .allSatisfy(migration -> assertThat(migration.getState().isApplied())
+                        .as("V%s applied", migration.getVersion())
+                        .isTrue());
     }
 
     @Test
