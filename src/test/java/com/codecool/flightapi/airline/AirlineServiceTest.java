@@ -7,12 +7,13 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.codecool.flightapi.common.error.ResourceAlreadyExistsException;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -23,24 +24,30 @@ class AirlineServiceTest {
     @Mock
     private AirlineRepository airlineRepository;
 
-    @InjectMocks
     private AirlineService airlineService;
 
-    private final Airline tarom = new Airline(10000L, "Tarom", "TRO");
+    private final Airline tarom = new Airline(10000L, "Tarom", "ROT");
+
+    @BeforeEach
+    void setUp() {
+        airlineService = new AirlineService(airlineRepository, new AirlineMapperImpl());
+    }
 
     @Test
     void findAllReturnsEveryAirline() {
         when(airlineRepository.findAll())
-                .thenReturn(List.of(tarom, new Airline(10001L, "Wizz", "WIZZ"), new Airline(10002L, "BlueAir", "BLA")));
+                .thenReturn(List.of(tarom, new Airline(10001L, "Wizz", "WZZ"), new Airline(10002L, "BlueAir", "BMS")));
 
-        assertThat(airlineService.findAll()).extracting(Airline::getName).containsExactly("Tarom", "Wizz", "BlueAir");
+        assertThat(airlineService.findAll())
+                .extracting(AirlineResponse::name)
+                .containsExactly("Tarom", "Wizz", "BlueAir");
     }
 
     @Test
-    void findByIdReturnsTheAirline() {
+    void findByIdExposesIsoAsIcaoCode() {
         when(airlineRepository.findById(10000L)).thenReturn(Optional.of(tarom));
 
-        assertThat(airlineService.findById(10000L)).isSameAs(tarom);
+        assertThat(airlineService.findById(10000L)).isEqualTo(new AirlineResponse(10000L, "Tarom", "ROT"));
     }
 
     @Test
@@ -53,23 +60,42 @@ class AirlineServiceTest {
     }
 
     @Test
-    void createSavesTheAirlineAndIgnoresClientSuppliedId() {
-        when(airlineRepository.save(any(Airline.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    void getByIcaoCodeThrowsNotFoundForUnknownCode() {
+        when(airlineRepository.findByIso("XXX")).thenReturn(Optional.empty());
 
-        Airline created = airlineService.create(new Airline(123L, "British", "BRT"));
-
-        assertThat(created.getId()).isNull();
-        assertThat(created.getName()).isEqualTo("British");
+        assertThatThrownBy(() -> airlineService.getByIcaoCode("XXX"))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Airline with ICAO code 'XXX' was not found");
     }
 
     @Test
-    void updateCopiesNameAndIso() {
+    void createSavesTheAirline() {
+        when(airlineRepository.findByIso("BAW")).thenReturn(Optional.empty());
+        when(airlineRepository.save(any(Airline.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AirlineResponse created = airlineService.create(new AirlineRequest("British Airways", "BAW"));
+
+        assertThat(created).isEqualTo(new AirlineResponse(null, "British Airways", "BAW"));
+    }
+
+    @Test
+    void createRejectsATakenIcaoCode() {
+        when(airlineRepository.findByIso("ROT")).thenReturn(Optional.of(tarom));
+
+        assertThatThrownBy(() -> airlineService.create(new AirlineRequest("Other", "ROT")))
+                .isInstanceOf(ResourceAlreadyExistsException.class);
+        verify(airlineRepository, never()).save(any(Airline.class));
+    }
+
+    @Test
+    void updateCopiesNameAndCodeAndMayKeepItsOwnCode() {
         when(airlineRepository.findById(10000L)).thenReturn(Optional.of(tarom));
+        when(airlineRepository.findByIso("ROT")).thenReturn(Optional.of(tarom));
 
-        Airline updated = airlineService.update(10000L, new Airline(null, "TAROM Romanian Air Transport", "ROT"));
+        AirlineResponse updated =
+                airlineService.update(10000L, new AirlineRequest("TAROM Romanian Air Transport", "ROT"));
 
-        assertThat(updated.getName()).isEqualTo("TAROM Romanian Air Transport");
-        assertThat(updated.getIso()).isEqualTo("ROT");
+        assertThat(updated).isEqualTo(new AirlineResponse(10000L, "TAROM Romanian Air Transport", "ROT"));
     }
 
     @Test

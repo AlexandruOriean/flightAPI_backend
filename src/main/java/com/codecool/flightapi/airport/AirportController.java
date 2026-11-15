@@ -1,6 +1,7 @@
 package com.codecool.flightapi.airport;
 
 import com.codecool.flightapi.common.web.Locations;
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -21,17 +22,17 @@ public class AirportController {
     private final AirportService airportService;
 
     @GetMapping
-    public ResponseEntity<List<Airport>> getAirports() {
+    public ResponseEntity<List<AirportResponse>> getAirports() {
         return ResponseEntity.ok(airportService.findAll());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Airport> getAirport(@PathVariable Long id) {
+    public ResponseEntity<AirportResponse> getAirport(@PathVariable Long id) {
         return ResponseEntity.ok(airportService.findById(id));
     }
 
     @GetMapping("/iata/{iataCode}")
-    public ResponseEntity<Airport> getAirportByIataCode(@PathVariable String iataCode) {
+    public ResponseEntity<AirportResponse> getAirportByIataCode(@PathVariable String iataCode) {
         return ResponseEntity.ok(airportService.findByIataCode(iataCode));
     }
 
@@ -41,14 +42,15 @@ public class AirportController {
     }
 
     @PostMapping
-    public ResponseEntity<Airport> createAirport(@RequestBody Airport airport) {
-        Airport created = airportService.create(airport);
-        return ResponseEntity.created(Locations.ofCreated(created.getId())).body(created);
+    public ResponseEntity<AirportResponse> createAirport(@Valid @RequestBody AirportRequest request) {
+        AirportResponse created = airportService.create(request);
+        return ResponseEntity.created(Locations.ofCreated(created.id())).body(created);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Airport> updateAirport(@PathVariable Long id, @RequestBody Airport changes) {
-        return ResponseEntity.ok(airportService.update(id, changes));
+    public ResponseEntity<AirportResponse> updateAirport(
+            @PathVariable Long id, @Valid @RequestBody AirportRequest request) {
+        return ResponseEntity.ok(airportService.update(id, request));
     }
 
     @DeleteMapping("/{id}")

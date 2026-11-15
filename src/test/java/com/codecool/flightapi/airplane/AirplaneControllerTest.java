@@ -1,9 +1,11 @@
 package com.codecool.flightapi.airplane;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -41,8 +43,8 @@ class AirplaneControllerTest {
     @MockitoBean
     private AirplaneService airplaneService;
 
-    private final Airplane airbus = new Airplane(1L, "Airbus", "A380", 853L, 1185);
-    private final Airplane boeing = new Airplane(2L, "Boeing", "737MAX", 180L, 800);
+    private final AirplaneResponse airbus = new AirplaneResponse(1L, "Airbus", "A380", 853L, 1185);
+    private final AirplaneResponse boeing = new AirplaneResponse(2L, "Boeing", "737MAX", 180L, 800);
 
     @Test
     @DisplayName("GET /api/v1/airplanes -> 200 with all airplanes")
@@ -85,7 +87,7 @@ class AirplaneControllerTest {
     @Test
     @DisplayName("POST /api/v1/airplanes -> 201 with Location header and the created airplane")
     void createAirplane() throws Exception {
-        when(airplaneService.create(any(Airplane.class))).thenReturn(airbus);
+        when(airplaneService.create(any(AirplaneRequest.class))).thenReturn(airbus);
 
         mockMvc.perform(post("/api/v1/airplanes")
                         .with(csrf())
@@ -97,9 +99,42 @@ class AirplaneControllerTest {
     }
 
     @Test
+    @DisplayName("POST /api/v1/airplanes binds the request DTO; a client-supplied id is not part of it")
+    void createAirplaneBindsRequest() throws Exception {
+        when(airplaneService.create(any(AirplaneRequest.class))).thenReturn(airbus);
+
+        mockMvc.perform(post("/api/v1/airplanes")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"id":99,"manufacturer":"Airbus","model":"A380","numberOfSeats":853,"speed":1185}
+                                """))
+                .andExpect(status().isCreated());
+
+        verify(airplaneService).create(new AirplaneRequest("Airbus", "A380", 853L, 1185.0));
+    }
+
+    @Test
+    @DisplayName("invalid request body -> 400 problem+json listing every invalid field")
+    void invalidRequestIsBadRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/airplanes")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"manufacturer":"","model":"A380","numberOfSeats":0}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.title").value("Validation failed"))
+                .andExpect(jsonPath("$.errors[*].field")
+                        .value(containsInAnyOrder("manufacturer", "numberOfSeats", "speed")));
+        verifyNoInteractions(airplaneService);
+    }
+
+    @Test
     @DisplayName("PUT /api/v1/airplanes/{id} -> 200 with the updated airplane")
     void updateAirplane() throws Exception {
-        when(airplaneService.update(eq(1L), any(Airplane.class))).thenReturn(airbus);
+        when(airplaneService.update(eq(1L), any(AirplaneRequest.class))).thenReturn(airbus);
 
         mockMvc.perform(put("/api/v1/airplanes/{id}", 1)
                         .with(csrf())

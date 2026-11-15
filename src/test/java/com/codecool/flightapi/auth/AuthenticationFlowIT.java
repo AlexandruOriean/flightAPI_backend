@@ -136,6 +136,17 @@ class AuthenticationFlowIT {
     }
 
     @Test
+    @DisplayName("registration with invalid fields is rejected with 400 problem+json listing them")
+    void invalidRegistrationIsBadRequest() throws Exception {
+        mockMvc.perform(post("/users/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"x\",\"email\":\"not-an-email\",\"password\":\"short\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errors[*].field").value(containsInAnyOrder("username", "email", "password")));
+    }
+
+    @Test
     @DisplayName("wrong password is rejected with 401 problem+json")
     void wrongPasswordIsRejected() throws Exception {
         mockMvc.perform(post("/users/login")
@@ -180,7 +191,7 @@ class AuthenticationFlowIT {
     void validTokenGrantsAccess() throws Exception {
         mockMvc.perform(get("/api/v1/airports").header(HttpHeaders.AUTHORIZATION, bearer(userToken)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].airportIataCode").value("OTP"));
+                .andExpect(jsonPath("$[0].iataCode").value("OTP"));
     }
 
     @Test
@@ -214,7 +225,7 @@ class AuthenticationFlowIT {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.cityName").value("Cluj"))
                 // the client-supplied id must not overwrite the existing city 1
-                .andExpect(jsonPath("$.cityId").value(not(1)))
+                .andExpect(jsonPath("$.id").value(not(1)))
                 .andReturn()
                 .getResponse()
                 .getHeader(HttpHeaders.LOCATION);
