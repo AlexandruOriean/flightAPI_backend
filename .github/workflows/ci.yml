@@ -17,8 +17,15 @@ jobs:
     name: Build & test (prod profile)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      # Only whether the secret exists, never its value: fork PRs (no secrets) and repositories
+      # without SONAR_TOKEN skip the analysis instead of failing.
+      HAS_SONAR_TOKEN: ${{ secrets.SONAR_TOKEN != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history: SonarQube Cloud uses blame data to tell new code from old
+          fetch-depth: 0
 
       - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
@@ -30,6 +37,14 @@ jobs:
       # available on GitHub-hosted runners), coverage gate and -Werror.
       - name: Verify
         run: ./mvnw -B -Pprod verify
+
+      # Static analysis and the coverage report from Verify, sent to SonarQube Cloud. Reuses the
+      # compiled classes; the token is only exposed to this step.
+      - name: SonarQube Cloud analysis
+        if: env.HAS_SONAR_TOKEN == 'true'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: ./mvnw -B -Pprod sonar:sonar
 
       - name: Upload coverage report
         if: always()
