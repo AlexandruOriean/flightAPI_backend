@@ -1,18 +1,23 @@
 package com.codecool.flightapi.flight;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.codecool.flightapi.airline.AirlineMapperImpl;
 import com.codecool.flightapi.airline.AirlineService;
+import com.codecool.flightapi.airport.Airport;
 import com.codecool.flightapi.airport.AirportMapperImpl;
 import com.codecool.flightapi.airport.AirportService;
 import com.codecool.flightapi.city.CityMapperImpl;
 import com.codecool.flightapi.city.CityService;
+import com.codecool.flightapi.common.money.Money;
 import com.codecool.flightapi.common.money.MoneyMapperImpl;
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Currency;
 import java.util.List;
 import org.hibernate.Hibernate;
 import org.junit.jupiter.api.DisplayName;
@@ -22,6 +27,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -150,6 +156,32 @@ class FlightRepositoryTest {
         assertThat(flights)
                 .extracting(flight -> flight.getDepartureAirport().getAirportIataCode())
                 .containsExactly("OTP", "OTP");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource({
+        "arrival before departure, 2020-11-01T10:00:00Z, 2020-11-01T09:00:00Z, LHR, 35.00",
+        "same departure and arrival airport, 2020-11-01T09:00:00Z, 2020-11-01T10:00:00Z, OTP, 35.00",
+        "negative price, 2020-11-01T09:00:00Z, 2020-11-01T10:00:00Z, LHR, -1.00"
+    })
+    @DisplayName("the database rejects flights that break the API's validation rules")
+    void databaseRejectsInvalidFlights(
+            String rule, Instant departure, Instant arrival, String arrivalIataCode, BigDecimal price) {
+        Flight seeded = flightRepository.findById(1L).orElseThrow(); // LHR -> OTP
+        Airport otopeni = seeded.getArrivalAirport();
+        Airport arrivalAirport = arrivalIataCode.equals("OTP") ? otopeni : seeded.getDepartureAirport();
+        Flight invalid = new Flight(
+                null,
+                departure,
+                arrival,
+                new Money(price, Currency.getInstance("EUR")),
+                otopeni,
+                arrivalAirport,
+                seeded.getAirline());
+
+        assertThatThrownBy(() -> flightRepository.saveAndFlush(invalid))
+                .as(rule)
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
