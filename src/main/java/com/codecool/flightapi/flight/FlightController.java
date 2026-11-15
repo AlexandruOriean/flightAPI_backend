@@ -2,6 +2,8 @@ package com.codecool.flightapi.flight;
 
 import com.codecool.flightapi.common.web.Locations;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -23,10 +26,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class FlightController {
 
+    /** Longer than any airport or city name; keeps the LIKE patterns of the search short. */
+    private static final int SEARCH_TERM_MAX_LENGTH = 100;
+
     private final FlightService flightService;
 
-    /** One page of flights: {@code ?page=0&size=20}. */
-    @GetMapping
+    /** One page of flights: {@code ?page=0&size=20}. Requests with any search parameter go to the search. */
+    @GetMapping(params = {"!from", "!to", "!date"})
     public ResponseEntity<PagedModel<FlightResponse>> getFlights(Pageable pageable) {
         return ResponseEntity.ok(new PagedModel<>(flightService.findAll(pageable)));
     }
@@ -36,11 +42,15 @@ public class FlightController {
         return ResponseEntity.ok(flightService.findById(id));
     }
 
-    @GetMapping("/{from}/{to}/{date}")
+    /**
+     * Flights departing on one day: {@code ?from=OTP&to=LHR&date=2026-01-15}. All three parameters are
+     * required (400 otherwise); see {@link FlightService#search} for how airports are matched.
+     */
+    @GetMapping
     public ResponseEntity<List<FlightResponse>> searchFlights(
-            @PathVariable String from,
-            @PathVariable String to,
-            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+            @RequestParam @NotBlank @Size(max = SEARCH_TERM_MAX_LENGTH) String from,
+            @RequestParam @NotBlank @Size(max = SEARCH_TERM_MAX_LENGTH) String to,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return ResponseEntity.ok(flightService.search(from, to, date));
     }
 

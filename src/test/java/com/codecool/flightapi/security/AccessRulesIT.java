@@ -56,7 +56,7 @@ class AccessRulesIT {
 
     @BeforeAll
     void obtainTokens() throws Exception {
-        mockMvc.perform(post("/users/register")
+        mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"rules-user\",\"name\":\"R\",\"email\":\"rules-user@example.com\","
                                 + "\"password\":\"" + USER_PASSWORD + "\"}"))
@@ -70,11 +70,18 @@ class AccessRulesIT {
             # caller    | method | path                                   | expected status
             # --- public: what the frontend uses before login, probes ---
             anonymous   | GET    | /api/v1/flights/1                      | 200
-            anonymous   | GET    | /api/v1/flights/London/Henri/2020-11-01 | 200
+            anonymous   | GET    | /api/v1/flights?from=London&to=Henri&date=2020-11-01 | 200
+            # a partial search is a 400, not a way into the admin-only list
+            anonymous   | GET    | /api/v1/flights?from=London            | 400
+            anonymous   | GET    | /api/v1/flights?date=2020-11-01        | 400
             anonymous   | GET    | /actuator/health                       | 200
             anonymous   | GET    | /actuator/info                         | 200
             # --- everything else needs a token (previously public by accident) ---
             anonymous   | GET    | /api/v1/flights                        | 401
+            anonymous   | GET    | /api/v1/flights?page=0&size=5          | 401
+            anonymous   | POST   | /api/v1/flights?from=London            | 401
+            anonymous   | GET    | /api/v1/flights/London/Henri/2020-11-01 | 401
+            anonymous   | POST   | /users/login                           | 401
             anonymous   | GET    | /api/v1/airplanes/1                    | 401
             anonymous   | GET    | /api/v1/airports/names                 | 401
             anonymous   | POST   | /api/v1/cities                         | 401
@@ -86,6 +93,7 @@ class AccessRulesIT {
             user        | GET    | /api/v1/airplanes/1                    | 200
             user        | GET    | /api/v1/airports/names                 | 200
             user        | GET    | /api/v1/flights                        | 403
+            user        | GET    | /api/v1/flights?page=0                 | 403
             user        | POST   | /api/v1/airlines                       | 403
             user        | PUT    | /api/v1/cities/1                       | 403
             user        | DELETE | /api/v1/cities/1                       | 403
@@ -147,7 +155,7 @@ class AccessRulesIT {
     }
 
     private String login(String username, String password) throws Exception {
-        String body = mockMvc.perform(post("/users/login")
+        String body = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
                 .andExpect(status().isOk())

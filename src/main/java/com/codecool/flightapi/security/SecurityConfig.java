@@ -1,5 +1,6 @@
 package com.codecool.flightapi.security;
 
+import java.util.stream.Stream;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -15,11 +16,22 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.AndRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
+
+    /**
+     * {@code GET /api/v1/flights} with any search parameter. {@code FlightController} sends these requests
+     * to the search (400 unless all parameters are given) and only parameterless ones to the full list.
+     */
+    private static final RequestMatcher FLIGHT_SEARCH = new AndRequestMatcher(
+            PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, "/api/v1/flights"),
+            request -> Stream.of("from", "to", "date").anyMatch(name -> request.getParameter(name) != null));
 
     private final ProblemDetailAuthenticationEntryPoint unauthorizedHandler;
     private final ProblemDetailAccessDeniedHandler accessDeniedHandler;
@@ -71,13 +83,16 @@ public class SecurityConfig {
                         ex -> ex.authenticationEntryPoint(unauthorizedHandler).accessDeniedHandler(accessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
                         // --- public ---
-                        .requestMatchers(HttpMethod.POST, "/users/register", "/users/login", "/users/logout")
+                        .requestMatchers(
+                                HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/logout")
                         .permitAll()
                         .requestMatchers("/error")
                         .permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**", "/actuator/info")
                         .permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/flights/{id}", "/api/v1/flights/{from}/{to}/{date}")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/flights/{id}")
+                        .permitAll()
+                        .requestMatchers(FLIGHT_SEARCH)
                         .permitAll()
                         // --- admin-only reads ---
                         .requestMatchers(HttpMethod.GET, "/api/v1/flights")
