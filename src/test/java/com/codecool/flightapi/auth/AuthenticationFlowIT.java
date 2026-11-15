@@ -18,6 +18,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -64,7 +66,7 @@ class AuthenticationFlowIT {
     @Test
     @DisplayName("login returns a signed JWT carrying the user's roles")
     void loginIssuesTokenWithRoles() throws Exception {
-        mockMvc.perform(post("/users/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(credentials("it-user", PASSWORD)))
                 .andExpect(status().isOk())
@@ -79,7 +81,7 @@ class AuthenticationFlowIT {
     @Test
     @DisplayName("logout is a POST that expires the legacy token cookie")
     void logoutExpiresLegacyTokenCookie() throws Exception {
-        mockMvc.perform(post("/users/logout"))
+        mockMvc.perform(post("/api/v1/auth/logout"))
                 .andExpect(status().isNoContent())
                 .andExpect(cookie().maxAge("token", 0))
                 .andExpect(cookie().path("token", "/users"))
@@ -90,7 +92,7 @@ class AuthenticationFlowIT {
     @Test
     @DisplayName("logout via GET is no longer allowed")
     void logoutViaGetIsRejected() throws Exception {
-        mockMvc.perform(get("/users/logout")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/auth/logout")).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -98,7 +100,7 @@ class AuthenticationFlowIT {
     void selfAssignedAdminRoleIsIgnored() throws Exception {
         register("it-mallory", "it-mallory@example.com", ",\"roles\":[\"admin\"]");
 
-        mockMvc.perform(post("/users/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(credentials("it-mallory", PASSWORD)))
                 .andExpect(status().isOk())
@@ -115,7 +117,7 @@ class AuthenticationFlowIT {
     @Test
     @DisplayName("the provisioned admin account has ROLE_ADMIN")
     void provisionedAdminHasAdminRole() throws Exception {
-        mockMvc.perform(post("/users/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(credentials("it-admin", ADMIN_PASSWORD)))
                 .andExpect(status().isOk())
@@ -125,7 +127,7 @@ class AuthenticationFlowIT {
     @Test
     @DisplayName("registering a taken username is rejected with 409 problem+json")
     void duplicateRegistrationIsConflict() throws Exception {
-        mockMvc.perform(post("/users/register")
+        mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(
                                 "{\"username\":\"it-user\",\"name\":\"IT\",\"email\":\"other@example.com\",\"password\":\"%s\"}"
@@ -138,12 +140,12 @@ class AuthenticationFlowIT {
     @Test
     @DisplayName("SECURITY: usernames and e-mails are unique regardless of case")
     void caseVariantOfTakenUsernameOrEmailIsConflict() throws Exception {
-        mockMvc.perform(post("/users/register")
+        mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(registration("IT-User", "case-variant@example.com", PASSWORD)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("Username is already taken."));
-        mockMvc.perform(post("/users/register")
+        mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(registration("it-other", "IT-User@Example.com", PASSWORD)))
                 .andExpect(status().isConflict())
@@ -153,7 +155,7 @@ class AuthenticationFlowIT {
     @Test
     @DisplayName("SECURITY: the admin username cannot be self-registered, in any case")
     void adminUsernameCannotBeRegistered() throws Exception {
-        mockMvc.perform(post("/users/register")
+        mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(registration("It-Admin", "not-the-admin@example.com", PASSWORD)))
                 .andExpect(status().isConflict())
@@ -163,7 +165,7 @@ class AuthenticationFlowIT {
     @Test
     @DisplayName("login ignores the case of the username")
     void loginIgnoresUsernameCase() throws Exception {
-        mockMvc.perform(post("/users/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(credentials("IT-User", PASSWORD)))
                 .andExpect(status().isOk())
@@ -174,7 +176,7 @@ class AuthenticationFlowIT {
     @DisplayName("a password over BCrypt's 72-byte limit is rejected with 400, not a server error")
     void passwordOverBcryptByteLimitIsBadRequest() throws Exception {
         // 40 characters, 80 bytes in UTF-8
-        mockMvc.perform(post("/users/register")
+        mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(registration("it-multibyte", "it-multibyte@example.com", "ă".repeat(40))))
                 .andExpect(status().isBadRequest())
@@ -184,7 +186,7 @@ class AuthenticationFlowIT {
     @Test
     @DisplayName("registration with invalid fields is rejected with 400 problem+json listing them")
     void invalidRegistrationIsBadRequest() throws Exception {
-        mockMvc.perform(post("/users/register")
+        mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"x\",\"email\":\"not-an-email\",\"password\":\"short\"}"))
                 .andExpect(status().isBadRequest())
@@ -195,7 +197,7 @@ class AuthenticationFlowIT {
     @Test
     @DisplayName("wrong password is rejected with 401 problem+json")
     void wrongPasswordIsRejected() throws Exception {
-        mockMvc.perform(post("/users/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"it-user\",\"password\":\"wrong\"}"))
                 .andExpect(status().isUnauthorized())
@@ -215,12 +217,39 @@ class AuthenticationFlowIT {
     }
 
     @Test
-    @DisplayName("invalid path parameter on a public endpoint -> 400 problem+json")
-    void invalidPathParameterIsBadRequest() throws Exception {
-        mockMvc.perform(get("/api/v1/flights/London/Henri/not-a-date"))
+    @DisplayName("invalid query parameter on a public endpoint -> 400 problem+json")
+    void invalidQueryParameterIsBadRequest() throws Exception {
+        mockMvc.perform(get("/api/v1/flights?from=London&to=Henri&date=not-a-date"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(
+            strings = {
+                "/api/v1/flights?from=&to=Henri&date=2020-11-01",
+                "/api/v1/flights?from=London&to= &date=2020-11-01",
+                "/api/v1/flights?from=London&date=2020-11-01",
+                "/api/v1/flights?from=London&to=Henri"
+            })
+    @DisplayName("flight search with a missing or blank parameter -> 400 problem+json, not every flight")
+    void incompleteFlightSearchIsBadRequest(String uri) throws Exception {
+        mockMvc.perform(get(uri))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+    }
+
+    @Test
+    @DisplayName("flight search is public and returns the matching flights as a list")
+    void flightSearchIsPublic() throws Exception {
+        mockMvc.perform(get("/api/v1/flights")
+                        .param("from", "London")
+                        .param("to", "Henri")
+                        .param("date", "2020-11-01"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(1));
     }
 
     @Test
@@ -322,7 +351,7 @@ class AuthenticationFlowIT {
     }
 
     private void register(String username, String email, String extraJson) throws Exception {
-        mockMvc.perform(post("/users/register")
+        mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"%s\",\"name\":\"IT\",\"email\":\"%s\",\"password\":\"%s\"%s}"
                                 .formatted(username, email, PASSWORD, extraJson)))
@@ -335,7 +364,7 @@ class AuthenticationFlowIT {
     }
 
     private String login(String username, String password) throws Exception {
-        String body = mockMvc.perform(post("/users/login")
+        String body = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(credentials(username, password)))
                 .andExpect(status().isOk())

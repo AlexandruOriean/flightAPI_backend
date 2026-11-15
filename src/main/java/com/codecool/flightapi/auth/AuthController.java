@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
@@ -65,7 +65,7 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<Void> logoutUser(HttpServletRequest request) {
         ResponseCookie expired = ResponseCookie.from(LEGACY_TOKEN_COOKIE, "")
-                // the legacy cookie had no explicit path, so browsers scoped it to /users
+                // the legacy cookie was set by /users/login without an explicit path, so browsers scoped it to /users
                 .path("/users")
                 .maxAge(0)
                 .httpOnly(true)
