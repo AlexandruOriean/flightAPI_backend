@@ -73,6 +73,13 @@
 
         <!-- OCI image (./mvnw -Pprod spring-boot:build-image); repository name must be lowercase -->
         <container.image.repository>ghcr.io/alexandruoriean/flight-api</container.image.repository>
+        <!--
+          Pinned Paketo builder (Spring Boot's default otherwise is :latest, so the same commit could build a
+          different image tomorrow). The builder pins its run image too (0.0.206 -> ubuntu-noble-run-tiny:0.0.153).
+          Update deliberately, e.g. monthly, to a tag at least two weeks old:
+          https://hub.docker.com/r/paketobuildpacks/builder-noble-java-tiny/tags
+        -->
+        <buildpacks.builder>paketobuildpacks/builder-noble-java-tiny:0.0.206</buildpacks.builder>
 
         <!-- Build constraints -->
         <maven.min.version>3.9.0</maven.min.version>
@@ -502,6 +509,7 @@
                     </excludes>
                     <image>
                         <name>${container.image.repository}:${project.version}</name>
+                        <builder>${buildpacks.builder}</builder>
                         <!-- Reproducible image metadata: creation date = last commit time -->
                         <createdDate>${git.commit.time}</createdDate>
                         <env>
