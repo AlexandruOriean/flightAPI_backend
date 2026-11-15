@@ -13,9 +13,11 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Currency;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 
@@ -32,10 +34,15 @@ import org.flywaydb.core.api.migration.Context;
  * </ul>
  *
  * <p>Written in Java because time-zone arithmetic in SQL differs between H2 and PostgreSQL. Zone and
- * currency are only known for the airports below; the migration stops if it meets any other airport
- * rather than guessing - add it to {@link #AIRPORTS} first.
+ * currency are known for the airports below, plus any given in the Flyway placeholder {@value #EXTRA_AIRPORTS}
+ * ({@code spring.flyway.placeholders.legacy-airports}, env {@code LEGACY_AIRPORTS}) as
+ * {@code XYZ:Europe/Berlin:EUR,ABC:America/New_York:USD}. Any other airport stops the migration rather than
+ * being guessed; {@code LegacyDataCheck} reports them before anything is migrated.
  */
 public class V7__Flight_instants_and_money extends BaseJavaMigration {
+
+    /** Flyway placeholder with additional airports: {@code IATA:zone:currency}, comma-separated. */
+    static final String EXTRA_AIRPORTS = "legacy-airports";
 
     private record AirportFacts(String timeZone, String currency) {}
 
@@ -65,11 +72,38 @@ public class V7__Flight_instants_and_money extends BaseJavaMigration {
     @Override
     public void migrate(Context context) throws Exception {
         Connection connection = context.getConnection();
-        Map<Long, AirportRow> airports = addAirportTimeZones(connection);
+        Map<Long, AirportRow> airports = addAirportTimeZones(
+                connection, knownAirports(context.getConfiguration().getPlaceholders()));
         convertFlights(connection, airports);
     }
 
-    private static Map<Long, AirportRow> addAirportTimeZones(Connection connection) throws SQLException {
+    /** IATA codes V7 can convert: the built-in ones plus those in the {@value #EXTRA_AIRPORTS} placeholder. */
+    static Set<String> knownAirportCodes(Map<String, String> placeholders) {
+        return knownAirports(placeholders).keySet();
+    }
+
+    private static Map<String, AirportFacts> knownAirports(Map<String, String> placeholders) {
+        Map<String, AirportFacts> known = new HashMap<>(AIRPORTS);
+        String extra = placeholders.getOrDefault(EXTRA_AIRPORTS, "");
+        for (String entry : extra.split(",", -1)) {
+            if (entry.isBlank()) {
+                continue;
+            }
+            String[] parts = entry.strip().split(":", -1);
+            if (parts.length != 3 || !parts[0].matches("[A-Z]{3}")) {
+                throw new IllegalArgumentException(
+                        "V7: '" + entry.strip() + "' in " + EXTRA_AIRPORTS + " is not IATA:zone:currency");
+            }
+            // fail on a typo now rather than store an unusable zone or currency
+            ZoneId.of(parts[1]);
+            Currency.getInstance(parts[2]);
+            known.put(parts[0], new AirportFacts(parts[1], parts[2]));
+        }
+        return known;
+    }
+
+    private static Map<Long, AirportRow> addAirportTimeZones(Connection connection, Map<String, AirportFacts> known)
+            throws SQLException {
         execute(connection, "ALTER TABLE airport ADD COLUMN time_zone VARCHAR(64)");
 
         Map<Long, AirportRow> airports = new HashMap<>();
@@ -78,7 +112,7 @@ public class V7__Flight_instants_and_money extends BaseJavaMigration {
                 ResultSet rs = select.executeQuery("SELECT airport_id, airport_iata_code FROM airport")) {
             while (rs.next()) {
                 String iataCode = rs.getString("airport_iata_code");
-                AirportFacts facts = AIRPORTS.get(iataCode);
+                AirportFacts facts = known.get(iataCode);
                 if (facts == null) {
                     unknown.add(iataCode);
                 } else {
@@ -90,7 +124,7 @@ public class V7__Flight_instants_and_money extends BaseJavaMigration {
         }
         if (!unknown.isEmpty()) {
             throw new IllegalStateException("V7: no time zone and currency known for airports " + unknown
-                    + "; add them to V7__Flight_instants_and_money.AIRPORTS before migrating");
+                    + "; add them to " + EXTRA_AIRPORTS + " (env LEGACY_AIRPORTS) before migrating");
         }
 
         try (PreparedStatement update =

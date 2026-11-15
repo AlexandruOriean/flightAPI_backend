@@ -162,6 +162,23 @@ Set the [configuration](#configuration) variables in the environment. The schema
 startup (Flyway); Hibernate only validates it. Health probes: `/actuator/health/liveness` and
 `/actuator/health/readiness`.
 
+### Upgrading an old database
+
+Databases from before V7 (the original project) may hold data three migrations cannot convert: V5 makes airport
+IATA codes, airline ICAO codes (`airline.iso`) and city names unique, V6 makes the columns the API requires
+`NOT NULL`, and V7 needs the time zone and currency of every airport. Before migrating such a database the app
+checks all of this and, if anything is in the way, stops with **one** list of the problems, before any migration
+has run. Fix them and start again:
+
+- **Duplicates (V5):** rename or merge the rows the report names, e.g.
+  `SELECT airport_iata_code, COUNT(*) FROM airport GROUP BY airport_iata_code HAVING COUNT(*) > 1;`
+- **Empty required columns (V6):** fill in or delete the rows, e.g. `SELECT * FROM flight WHERE price IS NULL;`
+- **Unknown airports (V7):** V7 knows OTP, TSR, LHR and CDG. Give the others as `IATA:time zone:currency`,
+  e.g. `LEGACY_AIRPORTS=BER:Europe/Berlin:EUR,JFK:America/New_York:USD`; the price of a flight departing there
+  gets that currency. The variable is only read while V7 runs and can be removed afterwards.
+
+New databases and databases already at V7 or later are not affected.
+
 ### Admin accounts
 
 The only admin is the account from `APP_ADMIN_*`; self-registration always creates plain users. Earlier
