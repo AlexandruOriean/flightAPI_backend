@@ -17,12 +17,12 @@
 
     <name>Flight API</name>
     <description>REST API for searching and managing flights, airports, airlines and user accounts.</description>
-    <url>https://github.com/AlexandruOriean/LOGOS_flightAPI_backend</url>
+    <url>https://github.com/AlexandruOriean/flightAPI_backend</url>
 
     <scm>
-        <url>https://github.com/AlexandruOriean/LOGOS_flightAPI_backend</url>
-        <connection>scm:git:https://github.com/AlexandruOriean/LOGOS_flightAPI_backend.git</connection>
-        <developerConnection>scm:git:git@github.com:AlexandruOriean/LOGOS_flightAPI_backend.git</developerConnection>
+        <url>https://github.com/AlexandruOriean/flightAPI_backend</url>
+        <connection>scm:git:https://github.com/AlexandruOriean/flightAPI_backend.git</connection>
+        <developerConnection>scm:git:git@github.com:AlexandruOriean/flightAPI_backend.git</developerConnection>
         <tag>HEAD</tag>
     </scm>
 
