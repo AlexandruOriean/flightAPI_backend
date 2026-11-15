@@ -10,6 +10,7 @@ import com.codecool.flightapi.city.CityMapperImpl;
 import com.codecool.flightapi.city.CityService;
 import java.time.LocalDate;
 import java.util.List;
+import org.hibernate.Hibernate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -41,6 +42,25 @@ class FlightRepositoryTest {
 
     @Autowired
     private FlightService flightService;
+
+    @Autowired
+    private FlightRepository flightRepository;
+
+    @Test
+    @DisplayName("findAll/findById load the lazy airports, cities and airline in the same query")
+    void entityGraphLoadsRelations() {
+        List<Flight> flights = flightRepository.findAll();
+        flights.add(flightRepository.findById(1L).orElseThrow());
+
+        assertThat(flights).hasSizeGreaterThan(1).allSatisfy(flight -> {
+            assertThat(Hibernate.isInitialized(flight.getDepartureAirport())).isTrue();
+            assertThat(Hibernate.isInitialized(flight.getDepartureAirport().getCity()))
+                    .isTrue();
+            assertThat(Hibernate.isInitialized(flight.getArrivalAirport().getCity()))
+                    .isTrue();
+            assertThat(Hibernate.isInitialized(flight.getAirline())).isTrue();
+        });
+    }
 
     @ParameterizedTest(name = "{0} -> {1}")
     @CsvSource({

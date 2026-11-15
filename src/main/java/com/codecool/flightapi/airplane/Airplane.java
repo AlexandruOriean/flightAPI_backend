@@ -1,17 +1,23 @@
 package com.codecool.flightapi.airplane;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "Airplane")
-@Data
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Builder
+@Getter
+@Setter
 public class Airplane {
 
     @Id
@@ -19,15 +25,28 @@ public class Airplane {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "manufacturer")
+    @Column(name = "manufacturer", nullable = false)
     private String manufacturer;
 
-    @Column(name = "model")
+    @Column(name = "model", nullable = false)
     private String model;
 
-    @Column(name = "numberOfSeats")
+    @Column(name = "number_of_seats", nullable = false)
     private Long numberOfSeats;
 
-    @Column(name = "speed")
+    /** Cruise speed in km/h. */
+    @Column(name = "speed", nullable = false)
     private double speed;
+
+    /** Identity is the database id; a new, unsaved airplane only equals itself. Safe with Hibernate proxies. */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        return o instanceof Airplane other && id != null && id.equals(other.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Airplane.class.hashCode();
+    }
 }
