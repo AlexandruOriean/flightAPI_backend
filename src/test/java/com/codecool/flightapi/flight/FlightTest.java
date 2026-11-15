@@ -9,6 +9,7 @@ import com.codecool.flightapi.city.City;
 import com.codecool.flightapi.common.money.Money;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Currency;
 import org.junit.jupiter.api.DisplayName;
@@ -50,6 +51,43 @@ class FlightTest {
     @DisplayName("a new flight cannot be built arriving before it departs")
     void constructorEnforcesTheRule() {
         assertThatThrownBy(() -> flight(ELEVEN, NINE)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("the local departure date follows the departure time and airport, in the airport's zone")
+    void departureLocalDateFollowsTimeAndAirport() {
+        // 22:30 UTC on 1 December is 00:30 on 2 December in Bucharest, still 1 December in London
+        Instant lateEvening = Instant.parse("2026-12-01T22:30:00Z");
+        Flight flight = flight(NINE, ELEVEN);
+        assertThat(flight.getDepartureLocalDate()).isEqualTo(LocalDate.of(2026, 12, 1));
+
+        flight.reschedule(lateEvening, lateEvening.plusSeconds(7200));
+        assertThat(flight.getDepartureLocalDate()).isEqualTo(LocalDate.of(2026, 12, 2));
+
+        flight.setDepartureAirport(flight.getArrivalAirport()); // London
+        assertThat(flight.getDepartureLocalDate()).isEqualTo(LocalDate.of(2026, 12, 1));
+    }
+
+    @Test
+    @DisplayName("refreshDepartureLocalDate picks up a new time zone of the departure airport")
+    void refreshAfterTimeZoneChange() {
+        Instant lateEvening = Instant.parse("2026-12-01T22:30:00Z");
+        Flight flight = flight(lateEvening, lateEvening.plusSeconds(7200));
+        assertThat(flight.getDepartureLocalDate()).isEqualTo(LocalDate.of(2026, 12, 2));
+
+        flight.getDepartureAirport().setTimeZone(ZoneId.of("UTC"));
+        flight.refreshDepartureLocalDate();
+
+        assertThat(flight.getDepartureLocalDate()).isEqualTo(LocalDate.of(2026, 12, 1));
+    }
+
+    @Test
+    @DisplayName("without a departure airport yet (new flight from a request) there is no local date")
+    void noLocalDateWithoutAirport() {
+        Flight flight = new Flight(
+                null, NINE, ELEVEN, new Money(new BigDecimal("1.00"), Currency.getInstance("EUR")), null, null, null);
+
+        assertThat(flight.getDepartureLocalDate()).isNull();
     }
 
     private static Flight flight(Instant departure, Instant arrival) {

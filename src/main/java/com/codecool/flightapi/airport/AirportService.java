@@ -4,9 +4,11 @@ import com.codecool.flightapi.city.CityService;
 import com.codecool.flightapi.common.error.ResourceAlreadyExistsException;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
 import com.codecool.flightapi.common.web.Pages;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -23,6 +25,7 @@ public class AirportService {
     private final AirportRepository airportRepository;
     private final AirportMapper airportMapper;
     private final CityService cityService;
+    private final ApplicationEventPublisher events;
 
     /** One page of airports, ordered by id. */
     public Page<AirportResponse> findAll(Pageable pageable) {
@@ -77,12 +80,17 @@ public class AirportService {
         return airportMapper.toResponse(airportRepository.save(airport));
     }
 
+    /** A new time zone publishes {@link AirportTimeZoneChanged}, so flights recompute their local dates. */
     @Transactional
     public AirportResponse update(Long id, AirportRequest request) {
         Airport airport = getById(id);
         requireIataCodeAvailable(request.iataCode(), id);
+        ZoneId previousZone = airport.getTimeZone();
         airportMapper.update(request, airport);
         airport.setCity(cityService.getByName(request.cityName()));
+        if (!airport.getTimeZone().equals(previousZone)) {
+            events.publishEvent(new AirportTimeZoneChanged(id));
+        }
         return airportMapper.toResponse(airport);
     }
 

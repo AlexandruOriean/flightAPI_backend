@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.AbstractPlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -75,7 +76,7 @@ class PostgresMigrationIT {
     @DisplayName("seed data and native queries work on PostgreSQL")
     void nativeQueriesWorkOnPostgres() {
         assertThat(airportService.findByIataCode("otp").name()).isEqualTo("Henri Coanda International Airport");
-        assertThat(flightService.search("London", "Henri", LocalDate.of(2020, 11, 1)))
+        assertThat(flightService.search("London", "Henri", LocalDate.of(2020, 11, 1), PageRequest.of(0, 20)))
                 .hasSize(1);
         assertThat(roleRepository.findByName(RoleName.ROLE_ADMIN)).isPresent();
     }

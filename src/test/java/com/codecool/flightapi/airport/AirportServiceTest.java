@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.codecool.flightapi.city.City;
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -36,6 +38,9 @@ class AirportServiceTest {
     @Mock
     private CityService cityService;
 
+    @Mock
+    private ApplicationEventPublisher events;
+
     private AirportService airportService;
 
     private final City bucuresti = new City(12L, "Bucuresti");
@@ -48,7 +53,7 @@ class AirportServiceTest {
     @BeforeEach
     void setUp() {
         airportService =
-                new AirportService(airportRepository, new AirportMapperImpl(new CityMapperImpl()), cityService);
+                new AirportService(airportRepository, new AirportMapperImpl(new CityMapperImpl()), cityService, events);
     }
 
     @Test
@@ -148,6 +153,18 @@ class AirportServiceTest {
         assertThat(updated)
                 .isEqualTo(new AirportResponse(1L, "OTP", "Otopeni", new CityResponse(21L, "London"), "Europe/London"));
         assertThat(otopeni.getTimeZone()).isEqualTo(ZoneId.of("Europe/London"));
+        verify(events).publishEvent(new AirportTimeZoneChanged(1L));
+    }
+
+    @Test
+    void updateKeepingTheTimeZonePublishesNothing() {
+        when(airportRepository.findById(1L)).thenReturn(Optional.of(otopeni));
+        when(airportRepository.findByIataCode("OTP")).thenReturn(Optional.of(otopeni));
+        when(cityService.getByName("Bucuresti")).thenReturn(bucuresti);
+
+        airportService.update(1L, new AirportRequest("OTP", "Otopeni", "Bucuresti", "Europe/Bucharest"));
+
+        verifyNoInteractions(events);
     }
 
     @Test

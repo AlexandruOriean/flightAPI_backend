@@ -31,6 +31,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -94,17 +95,22 @@ class FlightControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/v1/flights?from=&to=&date= -> the search, a plain list")
+    @DisplayName("GET /api/v1/flights?from=&to=&date= -> the search, one page like the list")
     void searchFlights() throws Exception {
-        when(flightService.search("OTP", "London", LocalDate.of(2026, 12, 1))).thenReturn(List.of(flight));
+        when(flightService.search("OTP", "London", LocalDate.of(2026, 12, 1), PageRequest.of(1, 5)))
+                .thenReturn(new PageImpl<>(List.of(flight), PageRequest.of(1, 5), 6));
 
         mockMvc.perform(get("/api/v1/flights")
                         .param("from", "OTP")
                         .param("to", "London")
-                        .param("date", "2026-12-01"))
+                        .param("date", "2026-12-01")
+                        .param("page", "1")
+                        .param("size", "5"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].arrivalAirport.iataCode").value("LHR"));
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].arrivalAirport.iataCode").value("LHR"))
+                .andExpect(jsonPath("$.page.number").value(1))
+                .andExpect(jsonPath("$.page.totalElements").value(6));
     }
 
     @Test
@@ -142,9 +148,9 @@ class FlightControllerTest {
     }
 
     @Test
-    @DisplayName("search the service rejects (term too short, too many flights) -> 400 with its message")
+    @DisplayName("search the service rejects (term too short) -> 400 with its message")
     void searchRejectedByTheService() throws Exception {
-        when(flightService.search("OT", "LHR", LocalDate.of(2026, 12, 1)))
+        when(flightService.search(eq("OT"), eq("LHR"), eq(LocalDate.of(2026, 12, 1)), any(Pageable.class)))
                 .thenThrow(new InvalidRequestException("Search terms need at least 3 characters."));
 
         mockMvc.perform(get("/api/v1/flights")

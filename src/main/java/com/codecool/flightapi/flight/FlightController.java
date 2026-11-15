@@ -51,15 +51,17 @@ public class FlightController {
     }
 
     /**
-     * Flights departing on one day: {@code ?from=OTP&to=LHR&date=2026-01-15}. All three parameters are
-     * required (400 otherwise); see {@link FlightService#search} for how airports are matched.
+     * One page of flights departing on one day: {@code ?from=OTP&to=LHR&date=2026-01-15&page=0&size=20}. The
+     * three search parameters are required (400 otherwise); see {@link FlightService#search} for how airports are
+     * matched.
      */
     @GetMapping
-    public ResponseEntity<List<FlightResponse>> searchFlights(
+    public ResponseEntity<PagedModel<FlightResponse>> searchFlights(
             @RequestParam(FROM) @NotBlank @Size(max = SEARCH_TERM_MAX_LENGTH) String from,
             @RequestParam(TO) @NotBlank @Size(max = SEARCH_TERM_MAX_LENGTH) String to,
-            @RequestParam(DATE) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return ResponseEntity.ok(flightService.search(from, to, date));
+            @RequestParam(DATE) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            Pageable pageable) {
+        return ResponseEntity.ok(new PagedModel<>(flightService.search(from, to, date, pageable)));
     }
 
     @PostMapping
