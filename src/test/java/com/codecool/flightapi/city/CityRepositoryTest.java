@@ -8,6 +8,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -34,6 +35,33 @@ class CityRepositoryTest {
         if (cityId != null) {
             cityRepository.deleteById(cityId);
         }
+    }
+
+    @Test
+    @DisplayName("city names are unique regardless of case and surrounding whitespace")
+    void namesAreUniqueIgnoringCase() {
+        // 'London' is seeded
+        assertThatThrownBy(() -> cityRepository.save(new City(null, " LONDON ")))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("lookup by name key finds the city whatever the case")
+    void findsCityByNameKey() {
+        assertThat(cityRepository.findByCityNameKey(City.key(" lONdon ")))
+                .hasValueSatisfying(city -> assertThat(city.getCityName()).isEqualTo("London"));
+    }
+
+    @Test
+    @DisplayName("renaming a city keeps its name key in step")
+    void renameUpdatesKey() {
+        cityId = cityRepository.save(new City(null, "Cluj")).getCityId();
+        new TransactionTemplate(transactionManager)
+                .executeWithoutResult(
+                        tx -> cityRepository.findById(cityId).orElseThrow().setCityName("Cluj-Napoca"));
+
+        assertThat(cityRepository.findByCityNameKey("cluj-napoca")).isPresent();
+        assertThat(cityRepository.findByCityNameKey("cluj")).isEmpty();
     }
 
     @Test
