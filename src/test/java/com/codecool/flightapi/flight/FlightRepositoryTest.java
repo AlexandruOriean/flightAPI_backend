@@ -8,6 +8,7 @@ import com.codecool.flightapi.airport.AirportMapperImpl;
 import com.codecool.flightapi.airport.AirportService;
 import com.codecool.flightapi.city.CityMapperImpl;
 import com.codecool.flightapi.city.CityService;
+import com.codecool.flightapi.common.money.MoneyMapperImpl;
 import java.time.LocalDate;
 import java.util.List;
 import org.hibernate.Hibernate;
@@ -34,7 +35,8 @@ import org.springframework.context.annotation.Import;
     AirlineService.class,
     AirlineMapperImpl.class,
     CityService.class,
-    CityMapperImpl.class
+    CityMapperImpl.class,
+    MoneyMapperImpl.class
 })
 class FlightRepositoryTest {
 

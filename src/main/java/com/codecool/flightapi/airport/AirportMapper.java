@@ -2,6 +2,7 @@ package com.codecool.flightapi.airport;
 
 import com.codecool.flightapi.city.CityMapper;
 import com.codecool.flightapi.common.mapping.MappingConfig;
+import java.time.ZoneId;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
@@ -25,4 +26,12 @@ public interface AirportMapper {
     @Mapping(target = "airportIataCode", source = "iataCode")
     @Mapping(target = "airportName", source = "name")
     void update(AirportRequest request, @MappingTarget Airport airport);
+
+    default String zoneId(ZoneId zone) {
+        return zone == null ? null : zone.getId();
+    }
+
+    default ZoneId zoneId(String id) {
+        return id == null ? null : ZoneId.of(id);
+    }
 }
