@@ -63,7 +63,7 @@ from the environment.
 | `JWT_SECRET` | always | – | Base64 HMAC key of at least 64 bytes (HS512): `openssl rand -base64 64`. Startup fails if it is shorter. |
 | `DB_URL` | prod | – | e.g. `jdbc:postgresql://db:5432/flights` |
 | `DB_USERNAME`, `DB_PASSWORD` | prod | – | Database credentials |
-| `CORS_ALLOWED_ORIGINS` | prod, with a browser front-end | none | Comma-separated exact origins, e.g. `https://flights.example.com` |
+| `CORS_ALLOWED_ORIGINS` | prod, with a browser front-end | none | Comma-separated exact origins, e.g. `https://flights.example.com`: scheme, host, optional port, no trailing slash or path (startup fails otherwise). Without it, browsers on other origins are blocked and the startup log warns. |
 | `APP_ADMIN_USERNAME` | no | `admin` | Admin account created at startup |
 | `APP_ADMIN_EMAIL` | with `APP_ADMIN_PASSWORD` | – | |
 | `APP_ADMIN_PASSWORD` | no | – | At least 12 characters. Without it no admin is created. Changing it later does not change an existing admin's password. |
