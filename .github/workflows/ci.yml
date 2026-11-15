@@ -38,6 +38,15 @@ jobs:
       - name: Verify
         run: ./mvnw -B -Pprod verify
 
+      # Analyzer plugins the scanner downloads from SonarQube Cloud, reused between runs
+      - name: Cache SonarQube packages
+        if: env.HAS_SONAR_TOKEN == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
       # Static analysis and the coverage report from Verify, sent to SonarQube Cloud. Reuses the
       # compiled classes; the token is only exposed to this step.
       - name: SonarQube Cloud analysis
