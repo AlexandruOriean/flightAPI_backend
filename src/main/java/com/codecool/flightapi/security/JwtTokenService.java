@@ -4,7 +4,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.JwsHeader;
@@ -23,12 +22,11 @@ public class JwtTokenService {
 
     private final JwtEncoder jwtEncoder;
 
-    @Value("${app.jwt.expiration-ms:3600000}")
-    private final long expirationMs;
+    private final JwtProperties properties;
 
     /** How long an issued token stays valid. */
     public Duration getTokenLifetime() {
-        return Duration.ofMillis(expirationMs);
+        return properties.tokenLifetime();
     }
 
     public String generateToken(Authentication authentication) {

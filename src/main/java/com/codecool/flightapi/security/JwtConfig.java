@@ -4,7 +4,6 @@ import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import java.util.Base64;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
@@ -27,12 +26,10 @@ public class JwtConfig {
     /** HS512 requires a key of at least 512 bits. */
     private static final int MIN_KEY_BYTES = 64;
 
-    /**
-     * @param base64Secret Base64-encoded HMAC key, e.g. generated with {@code openssl rand -base64 64}
-     */
+    /** The HMAC key from {@link JwtProperties#secret()}; startup fails if it is too short for HS512. */
     @Bean
-    SecretKey jwtSigningKey(@Value("${app.jwt.secret}") String base64Secret) {
-        byte[] keyBytes = Base64.getDecoder().decode(base64Secret);
+    SecretKey jwtSigningKey(JwtProperties properties) {
+        byte[] keyBytes = Base64.getDecoder().decode(properties.secret());
         if (keyBytes.length < MIN_KEY_BYTES) {
             throw new IllegalStateException("app.jwt.secret must decode to at least " + MIN_KEY_BYTES + " bytes for "
                     + ALGORITHM.getName() + ", got " + keyBytes.length);
