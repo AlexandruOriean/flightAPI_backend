@@ -155,6 +155,10 @@ startup (Flyway); Hibernate only validates it. Health probes: `/actuator/health/
 - **CI** (GitHub Actions): `./mvnw -Pprod verify` on every pull request and push to `main`, then a
   [SonarQube Cloud](https://sonarcloud.io/project/overview?id=AlexandruOriean_flightAPI_backend) analysis.
   Both are required to merge into `main`.
-- **Security scan**: OWASP dependency-check on dependency changes and weekly (needs the `NVD_API_KEY`
-  repository secret). Locally: `NVD_API_KEY=... ./mvnw -Pprod,security-scan -DskipTests verify`.
+- **Security scan**: OWASP dependency-check on dependency changes, every push to `main` and daily; fails on
+  CVSS ≥ 7. The scan reads an NVD database that the *NVD database update* workflow downloads daily into the
+  Actions cache (needs the `NVD_API_KEY` repository secret), so NVD outages never fail a pull request. On a
+  new repository, or after the cache expired, run that workflow once by hand.
+  Locally: `NVD_API_KEY=... ./mvnw -Pprod,security-scan -DskipTests verify` (the first run downloads the
+  whole database).
 - **Dependabot** keeps Maven dependencies and GitHub Actions up to date.

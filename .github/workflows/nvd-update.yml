@@ -1,0 +1,64 @@
+name: NVD database update
+
+# Downloads the NVD vulnerability data once a day and keeps it in the Actions cache. The dependency scans
+# (security-scan.yml) only read that cache, so an NVD outage fails this job, never a pull request, and the
+# scans keep using the last good copy.
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nvd-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Update NVD database
+    runs-on: ubuntu-latest
+    # The first, full download takes longest; later runs only fetch changes since the last update
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Restore NVD database
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.dependency-check/data
+          key: nvd-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: nvd-${{ runner.os }}-
+
+      # The NVD API answers 503 at times; retry with growing pauses
+      - name: Update NVD database
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if ./mvnw -B -Pprod,security-scan dependency-check:update-only; then
+              exit 0
+            else
+              status=$?
+            fi
+            if [[ "$attempt" -eq 5 ]]; then
+              exit "$status"
+            fi
+            delay=$((60 * 2 ** (attempt - 1)))
+            echo "NVD update failed (attempt $attempt/5); retrying in ${delay}s."
+            sleep "$delay"
+          done
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+
+      # Only a complete update is saved; after a failure the scans keep the previous copy
+      - name: Save NVD database
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.dependency-check/data
+          key: nvd-${{ runner.os }}-${{ github.run_id }}

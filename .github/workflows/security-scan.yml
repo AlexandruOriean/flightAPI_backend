@@ -9,8 +9,8 @@ on:
       - dependency-check-suppressions.xml
       - .github/workflows/security-scan.yml
   schedule:
-    # Weekly, so newly published CVEs are caught even without code changes
-    - cron: '0 5 * * 1'
+    # Daily, after nvd-update.yml, so newly published CVEs are caught even without code changes
+    - cron: '0 5 * * *'
   workflow_dispatch:
 
 permissions:
@@ -23,10 +23,10 @@ concurrency:
 jobs:
   dependency-check:
     name: OWASP dependency-check
-    # Fork PRs get neither the NVD_API_KEY secret nor code-scanning write access
+    # Fork PRs get no code-scanning write access
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 15
     permissions:
       contents: read
       security-events: write
@@ -39,37 +39,25 @@ jobs:
           java-version: '21'
           cache: maven
 
-      # The NVD database is large; restore the most recent copy and save an updated one each run
-      - name: Cache NVD database
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # Read-only: nvd-update.yml downloads the NVD data daily, so scans never call NVD and an NVD outage
+      # cannot fail them. Restores the newest copy (caches from main are visible to pull requests).
+      - name: Restore NVD database
+        id: nvd
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.dependency-check/data
-          key: nvd-${{ runner.os }}-${{ github.run_id }}
+          key: nvd-${{ runner.os }}-
           restore-keys: nvd-${{ runner.os }}-
+
+      - name: Require an NVD database
+        if: steps.nvd.outputs.cache-matched-key == ''
+        run: |
+          echo "::error::No NVD database in the cache yet. Run the 'NVD database update' workflow on main first."
+          exit 1
 
       # -Pprod scans exactly what ships (no dev-only H2). Fails on CVSS >= 7.
       - name: Scan dependencies
-        run: |
-          # Dependabot may expose an unset secret as an empty variable.
-          # dependency-check rejects an empty NVD API key.
-          if [[ -z "$NVD_API_KEY" ]]; then
-            unset NVD_API_KEY
-          fi
-          for attempt in 1 2 3 4 5; do
-            if ./mvnw -B -Pprod,security-scan -DskipTests verify; then
-              exit 0
-            else
-              status=$?
-            fi
-            if [[ "$attempt" -eq 5 ]]; then
-              exit "$status"
-            fi
-            delay=$((60 * 2 ** (attempt - 1)))
-            echo "Dependency-check failed (attempt $attempt/5); retrying in ${delay}s."
-            sleep "$delay"
-          done
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: ./mvnw -B -Pprod,security-scan -DskipTests -DautoUpdate=false verify
 
       - name: Publish results to GitHub code scanning
         if: always() && hashFiles('target/dependency-check-report.sarif') != ''
