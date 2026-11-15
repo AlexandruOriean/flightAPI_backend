@@ -29,6 +29,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 /**
  * Boots the full application (Flyway migrations, JPA schema validation, security, JWT)
@@ -90,7 +91,9 @@ class AuthenticationFlowIT {
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
                 .andExpect(jsonPath("$.roles[0]").value("ROLE_USER"))
                 // short-lived by default: roles in a token cannot be revoked before it expires
-                .andExpect(jsonPath("$.expiresIn").value(3600))
+                .andExpect(jsonPath("$.expiresIn").value(900))
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty())
+                .andExpect(jsonPath("$.refreshExpiresIn").value(7 * 24 * 3600))
                 // the token is only returned in the body, never as a (script-readable) cookie
                 .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
 
@@ -100,7 +103,7 @@ class AuthenticationFlowIT {
                         new String(Base64.getUrlDecoder().decode(parts[1]), UTF_8))
                 .read("$");
         assertThat(((Number) claims.get("exp")).longValue() - ((Number) claims.get("iat")).longValue())
-                .isEqualTo(3600);
+                .isEqualTo(900);
     }
 
     @Test
@@ -112,6 +115,66 @@ class AuthenticationFlowIT {
                 .andExpect(cookie().path("token", "/users"))
                 .andExpect(cookie().httpOnly("token", true))
                 .andExpect(cookie().sameSite("token", "Strict"));
+    }
+
+    @Test
+    @DisplayName("refresh: new token pair that works; the old refresh token is used up")
+    void refreshIssuesANewPair() throws Exception {
+        String firstRefresh = JsonPath.read(loginBody("it-user", PASSWORD), "$.refreshToken");
+
+        String body = refresh(firstRefresh)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username").value("it-user"))
+                .andExpect(jsonPath("$.roles[0]").value("ROLE_USER"))
+                .andExpect(jsonPath("$.expiresIn").value(900))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String accessToken = JsonPath.read(body, "$.accessToken");
+        String secondRefresh = JsonPath.read(body, "$.refreshToken");
+
+        assertThat(secondRefresh).isNotEqualTo(firstRefresh);
+        mockMvc.perform(get("/api/v1/airports").header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
+                .andExpect(status().isOk());
+        refresh(secondRefresh).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("refresh: a reused token -> 401 and every token of that login is revoked")
+    void reusedRefreshTokenRevokesTheLogin() throws Exception {
+        String stolen = JsonPath.read(loginBody("it-user", PASSWORD), "$.refreshToken");
+        String legitimate =
+                JsonPath.read(refresh(stolen).andReturn().getResponse().getContentAsString(), "$.refreshToken");
+
+        refresh(stolen)
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value("The refresh token is invalid or expired. Log in again."));
+        // the revocation is committed although the request failed
+        refresh(legitimate).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("refresh: unknown or missing token -> 401 / 400, without a bearer token")
+    void invalidRefreshRequests() throws Exception {
+        refresh("not-a-real-token").andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("logout with the refresh token ends that login: the token no longer refreshes")
+    void logoutRevokesTheRefreshToken() throws Exception {
+        String refreshToken = JsonPath.read(loginBody("it-user", PASSWORD), "$.refreshToken");
+
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"%s\"}".formatted(refreshToken)))
+                .andExpect(status().isNoContent());
+
+        refresh(refreshToken).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -390,14 +453,23 @@ class AuthenticationFlowIT {
     }
 
     private String login(String username, String password) throws Exception {
-        String body = mockMvc.perform(post("/api/v1/auth/login")
+        return JsonPath.read(loginBody(username, password), "$.accessToken");
+    }
+
+    private String loginBody(String username, String password) throws Exception {
+        return mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(credentials(username, password)))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
-        return JsonPath.read(body, "$.accessToken");
+    }
+
+    private ResultActions refresh(String refreshToken) throws Exception {
+        return mockMvc.perform(post("/api/v1/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refreshToken\":\"%s\"}".formatted(refreshToken)));
     }
 
     private static String credentials(String username, String password) {

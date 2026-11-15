@@ -78,6 +78,8 @@ class AccessRulesIT {
             # a partial search is a 400, not a way into the admin-only list
             anonymous   | GET    | /api/v1/flights?from=London            | 400
             anonymous   | GET    | /api/v1/flights?date=2020-11-01        | 400
+            # refresh is public: without a body it is a 400 (validation), not a 401
+            anonymous   | POST   | /api/v1/auth/refresh                   | 400
             anonymous   | GET    | /actuator/health                       | 200
             anonymous   | GET    | /actuator/info                         | 200
             # --- everything else needs a token (previously public by accident) ---

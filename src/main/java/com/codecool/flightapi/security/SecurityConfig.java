@@ -64,7 +64,7 @@ public class SecurityConfig {
      * of the rules below, otherwise it is rejected. Rules are evaluated top to bottom.
      *
      * <ul>
-     *   <li>Public: login/registration (rate-limited per client IP, see {@link AuthRateLimitFilter}), error page, health/info probes, and the flight search and
+     *   <li>Public: login/registration/refresh/logout (login and registration rate-limited per client IP, see {@link AuthRateLimitFilter}), error page, health/info probes, and the flight search and
      *       flight details the frontend shows before login.
      *   <li>Any signed-in user: every other {@code GET /api/v1/**}.
      *   <li>ADMIN: the full flight list and every write ({@code POST/PUT/DELETE /api/v1/**}).
@@ -88,7 +88,11 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // --- public ---
                         .requestMatchers(
-                                HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/logout")
+                                HttpMethod.POST,
+                                "/api/v1/auth/register",
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/refresh",
+                                "/api/v1/auth/logout")
                         .permitAll()
                         .requestMatchers("/error")
                         .permitAll()
