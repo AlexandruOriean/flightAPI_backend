@@ -1,7 +1,7 @@
 package com.codecool.flightapi.security;
 
+import com.codecool.flightapi.flight.FlightController;
 import io.github.bucket4j.TimeMeter;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -37,7 +37,8 @@ public class SecurityConfig {
      */
     private static final RequestMatcher FLIGHT_SEARCH = new AndRequestMatcher(
             PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, "/api/v1/flights"),
-            request -> Stream.of("from", "to", "date").anyMatch(name -> request.getParameter(name) != null));
+            request ->
+                    FlightController.SEARCH_PARAMETERS.stream().anyMatch(name -> request.getParameter(name) != null));
 
     private final ProblemDetailAuthenticationEntryPoint unauthorizedHandler;
     private final ProblemDetailAccessDeniedHandler accessDeniedHandler;

@@ -1,5 +1,6 @@
 package com.codecool.flightapi.security;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -23,6 +24,7 @@ public class JwtTokenService {
     private final JwtEncoder jwtEncoder;
 
     private final JwtProperties properties;
+    private final Clock clock;
 
     /** How long an issued token stays valid. */
     public Duration getTokenLifetime() {
@@ -30,7 +32,7 @@ public class JwtTokenService {
     }
 
     public String generateToken(Authentication authentication) {
-        Instant now = Instant.now();
+        Instant now = clock.instant();
         List<String> roles = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .toList();
