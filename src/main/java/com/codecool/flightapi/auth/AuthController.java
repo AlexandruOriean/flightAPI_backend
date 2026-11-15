@@ -55,7 +55,12 @@ public class AuthController {
                 .toList();
 
         return ResponseEntity.ok(TokenResponse.bearer(
-                jwt, userDetails.getId(), userDetails.getUsername(), userDetails.getEmail(), roles));
+                jwt,
+                jwtTokenService.getTokenLifetime().toSeconds(),
+                userDetails.getId(),
+                userDetails.getUsername(),
+                userDetails.getEmail(),
+                roles));
     }
 
     /**

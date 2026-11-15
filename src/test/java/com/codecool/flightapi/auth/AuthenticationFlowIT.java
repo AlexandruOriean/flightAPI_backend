@@ -1,5 +1,6 @@
 package com.codecool.flightapi.auth;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -14,6 +15,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import java.util.Base64;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -72,10 +75,18 @@ class AuthenticationFlowIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
                 .andExpect(jsonPath("$.roles[0]").value("ROLE_USER"))
+                // short-lived by default: roles in a token cannot be revoked before it expires
+                .andExpect(jsonPath("$.expiresIn").value(3600))
                 // the token is only returned in the body, never as a (script-readable) cookie
                 .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
 
-        assertThat(userToken.split("\\.")).hasSize(3);
+        String[] parts = userToken.split("\\.");
+        assertThat(parts).hasSize(3);
+        Map<String, Object> claims = JsonPath.parse(
+                        new String(Base64.getUrlDecoder().decode(parts[1]), UTF_8))
+                .read("$");
+        assertThat(((Number) claims.get("exp")).longValue() - ((Number) claims.get("iat")).longValue())
+                .isEqualTo(3600);
     }
 
     @Test

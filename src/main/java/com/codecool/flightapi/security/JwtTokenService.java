@@ -22,9 +22,14 @@ public class JwtTokenService {
     private final JwtEncoder jwtEncoder;
     private final Duration tokenLifetime;
 
-    public JwtTokenService(JwtEncoder jwtEncoder, @Value("${app.jwt.expiration-ms:86400000}") long expirationMs) {
+    public JwtTokenService(JwtEncoder jwtEncoder, @Value("${app.jwt.expiration-ms:3600000}") long expirationMs) {
         this.jwtEncoder = jwtEncoder;
         this.tokenLifetime = Duration.ofMillis(expirationMs);
+    }
+
+    /** How long an issued token stays valid. */
+    public Duration getTokenLifetime() {
+        return tokenLifetime;
     }
 
     public String generateToken(Authentication authentication) {
