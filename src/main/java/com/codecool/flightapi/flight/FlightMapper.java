@@ -13,16 +13,15 @@ import org.mapstruct.MappingTarget;
         uses = {AirportMapper.class, AirlineMapper.class})
 public interface FlightMapper {
 
-    @Mapping(target = "id", source = "flight_id")
     FlightResponse toResponse(Flight flight);
 
-    @Mapping(target = "flight_id", ignore = true)
+    @Mapping(target = "id", ignore = true)
     @Mapping(target = "departureAirport", ignore = true)
     @Mapping(target = "arrivalAirport", ignore = true)
     @Mapping(target = "airline", ignore = true)
     Flight toEntity(FlightRequest request);
 
-    @Mapping(target = "flight_id", ignore = true)
+    @Mapping(target = "id", ignore = true)
     @Mapping(target = "departureAirport", ignore = true)
     @Mapping(target = "arrivalAirport", ignore = true)
     @Mapping(target = "airline", ignore = true)

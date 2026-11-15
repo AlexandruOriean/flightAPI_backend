@@ -7,5 +7,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 interface AirlineRepository extends JpaRepository<Airline, Long> {
 
-    Optional<Airline> findByIso(String icaoCode);
+    Optional<Airline> findByIcaoCode(String icaoCode);
 }
