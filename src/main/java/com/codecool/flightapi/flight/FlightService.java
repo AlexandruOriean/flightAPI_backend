@@ -3,6 +3,7 @@ package com.codecool.flightapi.flight;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,9 +28,26 @@ public class FlightService {
         return flightRepository.findById(id).orElseThrow(() -> ResourceNotFoundException.byId("Flight", id));
     }
 
-    /** Flights whose departure/arrival airport names contain {@code from}/{@code to} on {@code date}. */
+    /**
+     * Flights on {@code date} from one airport to another. Each airport is given either as its IATA code
+     * ({@code OTP}) or as part of the airport or city name ({@code henri}, {@code London}), ignoring case.
+     */
     public List<Flight> search(String from, String to, LocalDate date) {
-        return flightRepository.getFlightByParams(from, to, date);
+        return flightRepository.search(iataCode(from), containsPattern(from), iataCode(to), containsPattern(to), date);
+    }
+
+    private static String iataCode(String term) {
+        return term.strip().toUpperCase(Locale.ROOT);
+    }
+
+    /** {@code %term%} in lower case, with LIKE wildcards in the term escaped so they match literally. */
+    private static String containsPattern(String term) {
+        String escaped = term.strip()
+                .toLowerCase(Locale.ROOT)
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
+        return "%" + escaped + "%";
     }
 
     /** Creates a new flight; any client-supplied id is ignored. */
