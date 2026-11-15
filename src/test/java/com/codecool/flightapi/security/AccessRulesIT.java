@@ -1,5 +1,7 @@
 package com.codecool.flightapi.security;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -34,12 +36,15 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
             "app.jwt.secret=dGVzdC1vbmx5LWtleS1kby1ub3QtdXNlLWluLXByb2R1Y3Rpb24tMDEyMzQ1Njc4OWFiY2RlZmdoaWprbG1ub3A=",
             "app.admin.username=rules-admin",
             "app.admin.email=rules-admin@example.com",
-            "app.admin.password=" + AccessRulesIT.ADMIN_PASSWORD
+            "app.admin.password=" + AccessRulesIT.ADMIN_PASSWORD,
+            "app.cors.allowed-origins=" + AccessRulesIT.FRONTEND_ORIGIN
         })
 @AutoConfigureMockMvc
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AccessRulesIT {
 
+    static final String FRONTEND_ORIGIN = "https://frontend.example.com";
+    private static final String OTHER_ORIGIN = "https://evil.example.com";
     static final String ADMIN_PASSWORD = "rules-admin-Secret-123!";
     private static final String USER_PASSWORD = "Secret123!";
 
@@ -107,6 +112,38 @@ class AccessRulesIT {
         mockMvc.perform(request(HttpMethod.GET, "/api/v1/flights/1"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("X-Frame-Options", "DENY"));
+    }
+
+    @Test
+    @DisplayName("CORS preflight from the configured frontend origin is allowed")
+    void corsPreflightFromAllowedOrigin() throws Exception {
+        mockMvc.perform(options("/api/v1/airlines")
+                        .header(HttpHeaders.ORIGIN, FRONTEND_ORIGIN)
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "authorization,content-type"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, FRONTEND_ORIGIN))
+                .andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS));
+    }
+
+    @Test
+    @DisplayName("CORS preflight from any other origin is rejected (previously every origin was allowed)")
+    void corsPreflightFromOtherOriginIsRejected() throws Exception {
+        mockMvc.perform(options("/api/v1/flights/1")
+                        .header(HttpHeaders.ORIGIN, OTHER_ORIGIN)
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "GET"))
+                .andExpect(status().isForbidden())
+                .andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
+    }
+
+    @Test
+    @DisplayName("Cross-origin requests from other origins are rejected, even to public endpoints")
+    void corsRequestFromOtherOriginIsRejected() throws Exception {
+        mockMvc.perform(get("/api/v1/flights/1").header(HttpHeaders.ORIGIN, OTHER_ORIGIN))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/flights/1").header(HttpHeaders.ORIGIN, FRONTEND_ORIGIN))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, FRONTEND_ORIGIN));
     }
 
     private String login(String username, String password) throws Exception {
