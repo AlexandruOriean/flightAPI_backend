@@ -2,8 +2,11 @@ package com.codecool.flightapi.city;
 
 import com.codecool.flightapi.common.error.ResourceAlreadyExistsException;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
-import java.util.List;
+import com.codecool.flightapi.common.web.Pages;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,11 +15,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class CityService {
 
+    private static final Sort ORDER = Sort.by("cityId");
+
     private final CityRepository cityRepository;
     private final CityMapper cityMapper;
 
-    public List<CityResponse> findAll() {
-        return cityRepository.findAll().stream().map(cityMapper::toResponse).toList();
+    /** One page of cities, ordered by id. */
+    public Page<CityResponse> findAll(Pageable pageable) {
+        return cityRepository.findAll(Pages.ordered(pageable, ORDER)).map(cityMapper::toResponse);
     }
 
     /**

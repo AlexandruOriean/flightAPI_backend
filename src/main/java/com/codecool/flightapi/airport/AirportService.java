@@ -3,9 +3,13 @@ package com.codecool.flightapi.airport;
 import com.codecool.flightapi.city.CityService;
 import com.codecool.flightapi.common.error.ResourceAlreadyExistsException;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
+import com.codecool.flightapi.common.web.Pages;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,14 +18,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class AirportService {
 
+    private static final Sort ORDER = Sort.by("id");
+
     private final AirportRepository airportRepository;
     private final AirportMapper airportMapper;
     private final CityService cityService;
 
-    public List<AirportResponse> findAll() {
-        return airportRepository.findAll().stream()
-                .map(airportMapper::toResponse)
-                .toList();
+    /** One page of airports, ordered by id. */
+    public Page<AirportResponse> findAll(Pageable pageable) {
+        return airportRepository.findAll(Pages.ordered(pageable, ORDER)).map(airportMapper::toResponse);
     }
 
     /**

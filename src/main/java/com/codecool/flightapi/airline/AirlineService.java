@@ -2,8 +2,11 @@ package com.codecool.flightapi.airline;
 
 import com.codecool.flightapi.common.error.ResourceAlreadyExistsException;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
-import java.util.List;
+import com.codecool.flightapi.common.web.Pages;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,13 +15,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class AirlineService {
 
+    private static final Sort ORDER = Sort.by("id");
+
     private final AirlineRepository airlineRepository;
     private final AirlineMapper airlineMapper;
 
-    public List<AirlineResponse> findAll() {
-        return airlineRepository.findAll().stream()
-                .map(airlineMapper::toResponse)
-                .toList();
+    /** One page of airlines, ordered by id. */
+    public Page<AirlineResponse> findAll(Pageable pageable) {
+        return airlineRepository.findAll(Pages.ordered(pageable, ORDER)).map(airlineMapper::toResponse);
     }
 
     /**

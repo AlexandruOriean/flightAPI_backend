@@ -1,8 +1,11 @@
 package com.codecool.flightapi.airplane;
 
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
-import java.util.List;
+import com.codecool.flightapi.common.web.Pages;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,13 +14,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class AirplaneService {
 
+    private static final Sort ORDER = Sort.by("id");
+
     private final AirplaneRepository airplaneRepository;
     private final AirplaneMapper airplaneMapper;
 
-    public List<AirplaneResponse> findAll() {
-        return airplaneRepository.findAll().stream()
-                .map(airplaneMapper::toResponse)
-                .toList();
+    /** One page of airplanes, ordered by id. */
+    public Page<AirplaneResponse> findAll(Pageable pageable) {
+        return airplaneRepository.findAll(Pages.ordered(pageable, ORDER)).map(airplaneMapper::toResponse);
     }
 
     /**

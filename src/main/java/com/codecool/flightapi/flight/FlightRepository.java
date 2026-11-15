@@ -3,6 +3,8 @@ package com.codecool.flightapi.flight;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -15,7 +17,7 @@ interface FlightRepository extends JpaRepository<Flight, Long> {
     /** Airports, their cities and the airline are lazy; load them in the same query. */
     @Override
     @EntityGraph(attributePaths = {"departureAirport.city", "arrivalAirport.city", "airline"})
-    List<Flight> findAll();
+    Page<Flight> findAll(Pageable pageable);
 
     @Override
     @EntityGraph(attributePaths = {"departureAirport.city", "arrivalAirport.city", "airline"})

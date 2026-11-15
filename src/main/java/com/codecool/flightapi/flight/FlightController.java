@@ -5,6 +5,8 @@ import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PagedModel;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -23,9 +25,10 @@ public class FlightController {
 
     private final FlightService flightService;
 
+    /** One page of flights: {@code ?page=0&size=20}. */
     @GetMapping
-    public ResponseEntity<List<FlightResponse>> getFlights() {
-        return ResponseEntity.ok(flightService.findAll());
+    public ResponseEntity<PagedModel<FlightResponse>> getFlights(Pageable pageable) {
+        return ResponseEntity.ok(new PagedModel<>(flightService.findAll(pageable)));
     }
 
     @GetMapping("/{id}")

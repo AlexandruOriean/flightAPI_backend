@@ -23,6 +23,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -47,16 +51,41 @@ class AirplaneControllerTest {
     private final AirplaneResponse boeing = new AirplaneResponse(2L, "Boeing", "737MAX", 180L, 800);
 
     @Test
-    @DisplayName("GET /api/v1/airplanes -> 200 with all airplanes")
+    @DisplayName("GET /api/v1/airplanes -> 200 with one page of airplanes and the page metadata")
     void getAirplanes() throws Exception {
-        when(airplaneService.findAll()).thenReturn(List.of(airbus, boeing));
+        when(airplaneService.findAll(PageRequest.of(1, 2)))
+                .thenReturn(new PageImpl<>(List.of(airbus, boeing), PageRequest.of(1, 2), 5));
 
-        mockMvc.perform(get("/api/v1/airplanes"))
+        mockMvc.perform(get("/api/v1/airplanes").param("page", "1").param("size", "2"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].model").value("A380"))
-                .andExpect(jsonPath("$[1].manufacturer").value("Boeing"));
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.content[0].model").value("A380"))
+                .andExpect(jsonPath("$.content[1].manufacturer").value("Boeing"))
+                .andExpect(jsonPath("$.page.number").value(1))
+                .andExpect(jsonPath("$.page.size").value(2))
+                .andExpect(jsonPath("$.page.totalElements").value(5))
+                .andExpect(jsonPath("$.page.totalPages").value(3));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/airplanes without parameters asks for the first 20")
+    void getAirplanesDefaultsToFirstPage() throws Exception {
+        when(airplaneService.findAll(any(Pageable.class))).thenReturn(Page.empty());
+
+        mockMvc.perform(get("/api/v1/airplanes")).andExpect(status().isOk());
+
+        verify(airplaneService).findAll(PageRequest.of(0, 20));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/airplanes caps the page size at 100")
+    void getAirplanesCapsThePageSize() throws Exception {
+        when(airplaneService.findAll(any(Pageable.class))).thenReturn(Page.empty());
+
+        mockMvc.perform(get("/api/v1/airplanes").param("size", "100000")).andExpect(status().isOk());
+
+        verify(airplaneService).findAll(PageRequest.of(0, 100));
     }
 
     @Test
@@ -189,7 +218,8 @@ class AirplaneControllerTest {
     @Test
     @DisplayName("unexpected exception -> 500 problem+json without internal details")
     void unexpectedErrorDoesNotLeakDetails() throws Exception {
-        when(airplaneService.findAll()).thenThrow(new IllegalStateException("db password is hunter2"));
+        when(airplaneService.findAll(any(Pageable.class)))
+                .thenThrow(new IllegalStateException("db password is hunter2"));
 
         mockMvc.perform(get("/api/v1/airplanes"))
                 .andExpect(status().isInternalServerError())
