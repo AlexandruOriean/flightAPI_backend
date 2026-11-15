@@ -2,6 +2,7 @@ package com.codecool.flightapi.flight;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.codecool.flightapi.airline.Airline;
@@ -40,7 +41,8 @@ class FlightServiceTest {
                 flight(1L, LocalTime.of(9, 20), LocalTime.of(11, 20)),
                 flight(2L, LocalTime.of(10, 20), LocalTime.of(12, 20)),
                 flight(3L, LocalTime.of(10, 20), LocalTime.of(13, 20)));
-        when(flightRepository.getFlightByParams("Otopeni", "Heathrow", DATE)).thenReturn(flights);
+        when(flightRepository.search("OTOPENI", "%otopeni%", "HEATHROW", "%heathrow%", DATE))
+                .thenReturn(flights);
 
         assertThat(flightService.search("Otopeni", "Heathrow", DATE)).hasSize(3).allSatisfy(flight -> {
             assertThat(flight.getDepartureAirport()).isEqualTo(otopeni);
@@ -51,9 +53,17 @@ class FlightServiceTest {
 
     @Test
     void searchReturnsEmptyListWhenNothingMatches() {
-        when(flightRepository.getFlightByParams("Otopeni", "Heathrow", DATE)).thenReturn(List.of());
+        when(flightRepository.search("OTOPENI", "%otopeni%", "HEATHROW", "%heathrow%", DATE))
+                .thenReturn(List.of());
 
         assertThat(flightService.search("Otopeni", "Heathrow", DATE)).isEmpty();
+    }
+
+    @Test
+    void searchEscapesLikeWildcardsAndNormalizesTerms() {
+        flightService.search(" 50%_off\\ ", "lhr", DATE);
+
+        verify(flightRepository).search("50%_OFF\\", "%50\\%\\_off\\\\%", "LHR", "%lhr%", DATE);
     }
 
     @Test

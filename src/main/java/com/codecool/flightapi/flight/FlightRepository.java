@@ -4,20 +4,39 @@ import java.time.LocalDate;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import org.springframework.web.bind.annotation.RequestParam;
 
 @Repository
 interface FlightRepository extends JpaRepository<Flight, Long> {
 
-    @Query(
-            value =
-                    "select f.flight_id, f.arrival_time, f.departure_time, f.price, f.departure_date, f.airline_id, f.arrival_airport_id, f.departure_airport_id , airport1.airport_name as departure_airport, airport2.airport_name as arrival_airport, airline.name as airline_name  from flight f\n"
-                            + " join airport airport1 on f.departure_airport_id = airport1.airport_id\n"
-                            + " join airport airport2 on f.arrival_airport_id = airport2.airport_id\n"
-                            + " join airline on f.airline_id = airline.id "
-                            + "where airport1.airport_name like %:from% and airport2.airport_name like %:to% and f.departure_date = :date",
-            nativeQuery = true)
-    List<Flight> getFlightByParams(
-            @RequestParam("from") String from, @RequestParam("to") String to, @RequestParam("date") LocalDate date);
+    /**
+     * Flights on {@code date} between two airports, each matched by exact IATA code or by a LIKE
+     * pattern on the airport or city name. Airports, cities and airline are fetched in the same query.
+     *
+     * @param fromCode upper-case IATA code of the departure airport
+     * @param fromPattern lower-case LIKE pattern ({@code \} escapes) for the departure airport/city name
+     * @param toCode upper-case IATA code of the arrival airport
+     * @param toPattern lower-case LIKE pattern ({@code \} escapes) for the arrival airport/city name
+     */
+    @Query("""
+            select f from Flight f
+              join fetch f.departureAirport dep left join fetch dep.city depCity
+              join fetch f.arrivalAirport arr left join fetch arr.city arrCity
+              left join fetch f.airline
+            where f.departureDate = :date
+              and (dep.airportIataCode = :fromCode
+                   or lower(dep.airportName) like :fromPattern escape '\\'
+                   or lower(depCity.cityName) like :fromPattern escape '\\')
+              and (arr.airportIataCode = :toCode
+                   or lower(arr.airportName) like :toPattern escape '\\'
+                   or lower(arrCity.cityName) like :toPattern escape '\\')
+            order by f.departureTime
+            """)
+    List<Flight> search(
+            @Param("fromCode") String fromCode,
+            @Param("fromPattern") String fromPattern,
+            @Param("toCode") String toCode,
+            @Param("toPattern") String toPattern,
+            @Param("date") LocalDate date);
 }
