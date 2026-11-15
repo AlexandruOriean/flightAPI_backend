@@ -1,6 +1,7 @@
 package com.codecool.flightapi.city;
 
 import com.codecool.flightapi.common.web.Locations;
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -21,24 +22,24 @@ public class CityController {
     private final CityService cityService;
 
     @GetMapping
-    public ResponseEntity<List<City>> getCities() {
+    public ResponseEntity<List<CityResponse>> getCities() {
         return ResponseEntity.ok(cityService.findAll());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<City> getCity(@PathVariable Long id) {
+    public ResponseEntity<CityResponse> getCity(@PathVariable Long id) {
         return ResponseEntity.ok(cityService.findById(id));
     }
 
     @PostMapping
-    public ResponseEntity<City> createCity(@RequestBody City city) {
-        City created = cityService.create(city);
-        return ResponseEntity.created(Locations.ofCreated(created.getCityId())).body(created);
+    public ResponseEntity<CityResponse> createCity(@Valid @RequestBody CityRequest request) {
+        CityResponse created = cityService.create(request);
+        return ResponseEntity.created(Locations.ofCreated(created.id())).body(created);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<City> updateCity(@PathVariable Long id, @RequestBody City changes) {
-        return ResponseEntity.ok(cityService.update(id, changes));
+    public ResponseEntity<CityResponse> updateCity(@PathVariable Long id, @Valid @RequestBody CityRequest request) {
+        return ResponseEntity.ok(cityService.update(id, request));
     }
 
     @DeleteMapping("/{id}")

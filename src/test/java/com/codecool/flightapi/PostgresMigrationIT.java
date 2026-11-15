@@ -49,14 +49,13 @@ class PostgresMigrationIT {
     @DisplayName("all migrations are applied on PostgreSQL")
     void migrationsAreApplied() {
         assertThat(flyway.info().pending()).isEmpty();
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("4");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("5");
     }
 
     @Test
     @DisplayName("seed data and native queries work on PostgreSQL")
     void nativeQueriesWorkOnPostgres() {
-        assertThat(airportService.findByIataCode("otp").getAirportName())
-                .isEqualTo("Henri Coanda International Airport");
+        assertThat(airportService.findByIataCode("otp").name()).isEqualTo("Henri Coanda International Airport");
         assertThat(flightService.search("London", "Henri", LocalDate.of(2020, 11, 1)))
                 .hasSize(1);
         assertThat(roleRepository.findByName(RoleName.ROLE_ADMIN)).isPresent();

@@ -1,6 +1,7 @@
 package com.codecool.flightapi.flight;
 
 import com.codecool.flightapi.common.web.Locations;
+import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -23,17 +24,17 @@ public class FlightController {
     private final FlightService flightService;
 
     @GetMapping
-    public ResponseEntity<List<Flight>> getFlights() {
+    public ResponseEntity<List<FlightResponse>> getFlights() {
         return ResponseEntity.ok(flightService.findAll());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Flight> getFlight(@PathVariable Long id) {
+    public ResponseEntity<FlightResponse> getFlight(@PathVariable Long id) {
         return ResponseEntity.ok(flightService.findById(id));
     }
 
     @GetMapping("/{from}/{to}/{date}")
-    public ResponseEntity<List<Flight>> searchFlights(
+    public ResponseEntity<List<FlightResponse>> searchFlights(
             @PathVariable String from,
             @PathVariable String to,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
@@ -41,15 +42,15 @@ public class FlightController {
     }
 
     @PostMapping
-    public ResponseEntity<Flight> createFlight(@RequestBody Flight flight) {
-        Flight created = flightService.create(flight);
-        return ResponseEntity.created(Locations.ofCreated(created.getFlight_id()))
-                .body(created);
+    public ResponseEntity<FlightResponse> createFlight(@Valid @RequestBody FlightRequest request) {
+        FlightResponse created = flightService.create(request);
+        return ResponseEntity.created(Locations.ofCreated(created.id())).body(created);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Flight> updateFlight(@PathVariable Long id, @RequestBody Flight changes) {
-        return ResponseEntity.ok(flightService.update(id, changes));
+    public ResponseEntity<FlightResponse> updateFlight(
+            @PathVariable Long id, @Valid @RequestBody FlightRequest request) {
+        return ResponseEntity.ok(flightService.update(id, request));
     }
 
     @DeleteMapping("/{id}")

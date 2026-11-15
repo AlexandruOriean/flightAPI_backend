@@ -1,6 +1,7 @@
 package com.codecool.flightapi.airplane;
 
 import com.codecool.flightapi.common.web.Locations;
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -21,24 +22,25 @@ public class AirplaneController {
     private final AirplaneService airplaneService;
 
     @GetMapping
-    public ResponseEntity<List<Airplane>> getAirplanes() {
+    public ResponseEntity<List<AirplaneResponse>> getAirplanes() {
         return ResponseEntity.ok(airplaneService.findAll());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Airplane> getAirplane(@PathVariable Long id) {
+    public ResponseEntity<AirplaneResponse> getAirplane(@PathVariable Long id) {
         return ResponseEntity.ok(airplaneService.findById(id));
     }
 
     @PostMapping
-    public ResponseEntity<Airplane> createAirplane(@RequestBody Airplane airplane) {
-        Airplane created = airplaneService.create(airplane);
-        return ResponseEntity.created(Locations.ofCreated(created.getId())).body(created);
+    public ResponseEntity<AirplaneResponse> createAirplane(@Valid @RequestBody AirplaneRequest request) {
+        AirplaneResponse created = airplaneService.create(request);
+        return ResponseEntity.created(Locations.ofCreated(created.id())).body(created);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Airplane> updateAirplane(@PathVariable Long id, @RequestBody Airplane changes) {
-        return ResponseEntity.ok(airplaneService.update(id, changes));
+    public ResponseEntity<AirplaneResponse> updateAirplane(
+            @PathVariable Long id, @Valid @RequestBody AirplaneRequest request) {
+        return ResponseEntity.ok(airplaneService.update(id, request));
     }
 
     @DeleteMapping("/{id}")

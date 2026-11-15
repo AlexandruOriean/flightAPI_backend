@@ -46,7 +46,7 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<TokenResponse> loginUser(@Valid @RequestBody LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
+                new UsernamePasswordAuthenticationToken(request.username(), request.password()));
         String jwt = jwtTokenService.generateToken(authentication);
 
         UserPrincipal userDetails = (UserPrincipal) authentication.getPrincipal();
@@ -54,8 +54,8 @@ public class AuthController {
                 .map(GrantedAuthority::getAuthority)
                 .toList();
 
-        return ResponseEntity.ok(
-                new TokenResponse(jwt, userDetails.getId(), userDetails.getUsername(), userDetails.getEmail(), roles));
+        return ResponseEntity.ok(TokenResponse.bearer(
+                jwt, userDetails.getId(), userDetails.getUsername(), userDetails.getEmail(), roles));
     }
 
     /**

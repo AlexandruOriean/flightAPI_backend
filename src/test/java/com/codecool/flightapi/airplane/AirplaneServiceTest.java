@@ -9,9 +9,10 @@ import static org.mockito.Mockito.when;
 
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -21,8 +22,12 @@ class AirplaneServiceTest {
     @Mock
     private AirplaneRepository airplaneRepository;
 
-    @InjectMocks
     private AirplaneService airplaneService;
+
+    @BeforeEach
+    void setUp() {
+        airplaneService = new AirplaneService(airplaneRepository, new AirplaneMapperImpl());
+    }
 
     @Test
     void findByIdThrowsNotFoundForUnknownId() {
@@ -34,13 +39,26 @@ class AirplaneServiceTest {
     }
 
     @Test
-    void createIgnoresClientSuppliedId() {
-        Airplane request = new Airplane(7L, "Airbus", "A320", 150L, 800);
-        when(airplaneRepository.save(any(Airplane.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    void findByIdReturnsTheAirplaneAsResponse() {
+        when(airplaneRepository.findById(1L)).thenReturn(Optional.of(new Airplane(1L, "Boeing", "B737", 180L, 700)));
 
-        Airplane created = airplaneService.create(request);
+        assertThat(airplaneService.findById(1L)).isEqualTo(new AirplaneResponse(1L, "Boeing", "B737", 180L, 700));
+    }
 
-        assertThat(created.getId()).isNull();
+    @Test
+    void createSavesANewEntityWithoutId() {
+        when(airplaneRepository.save(any(Airplane.class))).thenAnswer(invocation -> {
+            Airplane saved = invocation.getArgument(0);
+            saved.setId(5L);
+            return saved;
+        });
+
+        AirplaneResponse created = airplaneService.create(new AirplaneRequest("Airbus", "A320", 150L, 800.0));
+
+        ArgumentCaptor<Airplane> saved = ArgumentCaptor.forClass(Airplane.class);
+        verify(airplaneRepository).save(saved.capture());
+        assertThat(saved.getValue().getModel()).isEqualTo("A320");
+        assertThat(created).isEqualTo(new AirplaneResponse(5L, "Airbus", "A320", 150L, 800));
     }
 
     @Test
@@ -48,13 +66,11 @@ class AirplaneServiceTest {
         Airplane existing = new Airplane(1L, "Boeing", "B737", 180L, 700);
         when(airplaneRepository.findById(1L)).thenReturn(Optional.of(existing));
 
-        Airplane updated = airplaneService.update(1L, new Airplane(null, "Airbus", "A350", 300L, 950));
+        AirplaneResponse updated = airplaneService.update(1L, new AirplaneRequest("Airbus", "A350", 300L, 950.0));
 
-        assertThat(updated.getManufacturer()).isEqualTo("Airbus");
-        assertThat(updated.getModel()).isEqualTo("A350");
-        assertThat(updated.getNumberOfSeats()).isEqualTo(300L);
         // regression: speed used to be overwritten with numberOfSeats
-        assertThat(updated.getSpeed()).isEqualTo(950);
+        assertThat(updated).isEqualTo(new AirplaneResponse(1L, "Airbus", "A350", 300L, 950));
+        assertThat(existing.getSpeed()).isEqualTo(950);
     }
 
     @Test

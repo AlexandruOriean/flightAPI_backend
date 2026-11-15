@@ -2,6 +2,12 @@ package com.codecool.flightapi.flight;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.codecool.flightapi.airline.AirlineMapperImpl;
+import com.codecool.flightapi.airline.AirlineService;
+import com.codecool.flightapi.airport.AirportMapperImpl;
+import com.codecool.flightapi.airport.AirportService;
+import com.codecool.flightapi.city.CityMapperImpl;
+import com.codecool.flightapi.city.CityService;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -19,7 +25,16 @@ import org.springframework.context.annotation.Import;
  * <p>Seeded flights on {@link #SEEDED_FLIGHT_DATE}: LHR→OTP, OTP→LHR, CDG→OTP, OTP→CDG, TSR→LHR.
  */
 @DataJpaTest
-@Import(FlightService.class)
+@Import({
+    FlightService.class,
+    FlightMapperImpl.class,
+    AirportService.class,
+    AirportMapperImpl.class,
+    AirlineService.class,
+    AirlineMapperImpl.class,
+    CityService.class,
+    CityMapperImpl.class
+})
 class FlightRepositoryTest {
 
     private static final LocalDate SEEDED_FLIGHT_DATE = LocalDate.of(2020, 11, 1);
@@ -37,13 +52,13 @@ class FlightRepositoryTest {
     })
     @DisplayName("flight search matches each airport by IATA code, airport name or city name")
     void searchMatchesIataCodeOrName(String from, String to) {
-        List<Flight> flights = flightService.search(from, to, SEEDED_FLIGHT_DATE);
+        List<FlightResponse> flights = flightService.search(from, to, SEEDED_FLIGHT_DATE);
 
         assertThat(flights).singleElement().satisfies(flight -> {
-            assertThat(flight.getDepartureAirport().getAirportIataCode()).isEqualTo("LHR");
-            assertThat(flight.getArrivalAirport().getAirportIataCode()).isEqualTo("OTP");
-            assertThat(flight.getArrivalAirport().getCity().getCityName()).isEqualTo("Bucuresti");
-            assertThat(flight.getAirline().getName()).isEqualTo("Tarom");
+            assertThat(flight.departureAirport().iataCode()).isEqualTo("LHR");
+            assertThat(flight.arrivalAirport().iataCode()).isEqualTo("OTP");
+            assertThat(flight.arrivalAirport().city().cityName()).isEqualTo("Bucuresti");
+            assertThat(flight.airline().name()).isEqualTo("Tarom");
         });
     }
 
@@ -52,7 +67,7 @@ class FlightRepositoryTest {
     void searchRespectsDirection() {
         assertThat(flightService.search("OTP", "LHR", SEEDED_FLIGHT_DATE))
                 .singleElement()
-                .satisfies(flight -> assertThat(flight.getAirline().getName()).isEqualTo("British Airways"));
+                .satisfies(flight -> assertThat(flight.airline().name()).isEqualTo("British Airways"));
     }
 
     @Test
@@ -60,7 +75,7 @@ class FlightRepositoryTest {
     void searchReturnsAllMatches() {
         // 'airport' is part of every seeded airport name
         assertThat(flightService.search("airport", "OTP", SEEDED_FLIGHT_DATE))
-                .extracting(flight -> flight.getDepartureAirport().getAirportIataCode())
+                .extracting(flight -> flight.departureAirport().iataCode())
                 .containsExactlyInAnyOrder("LHR", "CDG");
     }
 
