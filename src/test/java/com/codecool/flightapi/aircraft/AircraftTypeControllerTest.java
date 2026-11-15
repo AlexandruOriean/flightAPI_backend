@@ -17,8 +17,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.codecool.flightapi.common.error.PreconditionFailedException;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
+import com.codecool.flightapi.common.web.ETags.IfMatch;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,8 +51,9 @@ class AircraftTypeControllerTest {
     @MockitoBean
     private AircraftTypeService aircraftTypeService;
 
-    private final AircraftTypeResponse airbus = new AircraftTypeResponse(1L, "A388", "Airbus", "A380-800", 903, 555);
-    private final AircraftTypeResponse boeing = new AircraftTypeResponse(2L, "B38M", "Boeing", "737 MAX 8", 840, null);
+    private final AircraftTypeResponse airbus = new AircraftTypeResponse(1L, "A388", "Airbus", "A380-800", 903, 555, 0);
+    private final AircraftTypeResponse boeing =
+            new AircraftTypeResponse(2L, "B38M", "Boeing", "737 MAX 8", 840, null, 0);
 
     @Test
     @DisplayName("GET /api/v1/aircraft-types -> 200 with one page of aircraft types and the page metadata")
@@ -98,6 +102,61 @@ class AircraftTypeControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.icaoCode").value("A388"));
+    }
+
+    @Test
+    @DisplayName("GET /{id}, POST and PUT send the version as a strong ETag, not in the body")
+    void singleResourcesCarryTheirEtag() throws Exception {
+        AircraftTypeResponse version7 = new AircraftTypeResponse(1L, "A388", "Airbus", "A380-800", 903, 555, 7);
+        when(aircraftTypeService.findById(1L)).thenReturn(version7);
+        when(aircraftTypeService.create(any(AircraftTypeRequest.class))).thenReturn(version7);
+        when(aircraftTypeService.update(eq(1L), any(AircraftTypeRequest.class), any(IfMatch.class)))
+                .thenReturn(version7);
+
+        mockMvc.perform(get("/api/v1/aircraft-types/{id}", 1))
+                .andExpect(header().string("ETag", "\"7\""))
+                .andExpect(jsonPath("$.version").doesNotExist());
+        mockMvc.perform(post("/api/v1/aircraft-types")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(AIRCRAFT_TYPE_JSON))
+                .andExpect(header().string("ETag", "\"7\""));
+        mockMvc.perform(put("/api/v1/aircraft-types/{id}", 1)
+                        .with(csrf())
+                        .header("If-Match", "\"6\"")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(AIRCRAFT_TYPE_JSON))
+                .andExpect(header().string("ETag", "\"7\""));
+
+        verify(aircraftTypeService).update(eq(1L), any(AircraftTypeRequest.class), eq(new IfMatch(Set.of(6L), false)));
+    }
+
+    @Test
+    @DisplayName("PUT without If-Match -> 428 problem+json, the service is not called")
+    void updateWithoutIfMatchIsPreconditionRequired() throws Exception {
+        mockMvc.perform(put("/api/v1/aircraft-types/{id}", 1)
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(AIRCRAFT_TYPE_JSON))
+                .andExpect(status().isPreconditionRequired())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.title").value("Precondition required"));
+        verifyNoInteractions(aircraftTypeService);
+    }
+
+    @Test
+    @DisplayName("PUT with the ETag of an older version -> 412 problem+json")
+    void staleIfMatchIsPreconditionFailed() throws Exception {
+        when(aircraftTypeService.update(eq(1L), any(AircraftTypeRequest.class), any(IfMatch.class)))
+                .thenThrow(new PreconditionFailedException());
+
+        mockMvc.perform(put("/api/v1/aircraft-types/{id}", 1)
+                        .with(csrf())
+                        .header("If-Match", "\"1\"")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(AIRCRAFT_TYPE_JSON))
+                .andExpect(status().isPreconditionFailed())
+                .andExpect(jsonPath("$.title").value("Precondition failed"));
     }
 
     @Test
@@ -164,10 +223,12 @@ class AircraftTypeControllerTest {
     @Test
     @DisplayName("PUT /api/v1/aircraft-types/{id} -> 200 with the updated aircraft type")
     void updateAircraftType() throws Exception {
-        when(aircraftTypeService.update(eq(1L), any(AircraftTypeRequest.class))).thenReturn(airbus);
+        when(aircraftTypeService.update(eq(1L), any(AircraftTypeRequest.class), any(IfMatch.class)))
+                .thenReturn(airbus);
 
         mockMvc.perform(put("/api/v1/aircraft-types/{id}", 1)
                         .with(csrf())
+                        .header("If-Match", "\"0\"")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(AIRCRAFT_TYPE_JSON))
                 .andExpect(status().isOk())
@@ -220,12 +281,13 @@ class AircraftTypeControllerTest {
     @DisplayName("concurrent update of the same aircraft type -> 409 problem+json")
     @WithMockUser(roles = "ADMIN")
     void concurrentUpdateIsConflict() throws Exception {
-        when(aircraftTypeService.update(eq(1L), any(AircraftTypeRequest.class)))
+        when(aircraftTypeService.update(eq(1L), any(AircraftTypeRequest.class), any(IfMatch.class)))
                 .thenThrow(new ObjectOptimisticLockingFailureException(AircraftType.class, 1L));
 
         mockMvc.perform(
                         put("/api/v1/aircraft-types/{id}", 1)
                                 .with(csrf())
+                                .header("If-Match", "\"0\"")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         "{\"icaoCode\":\"A320\",\"manufacturer\":\"Airbus\",\"model\":\"A320\",\"cruiseSpeedKmh\":840}"))

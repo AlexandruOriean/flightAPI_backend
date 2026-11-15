@@ -17,6 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.codecool.flightapi.city.CityResponse;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
+import com.codecool.flightapi.common.web.ETags.IfMatch;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -44,8 +45,8 @@ class AirportControllerTest {
     @MockitoBean
     private AirportService airportService;
 
-    private final AirportResponse otopeni =
-            new AirportResponse(1L, "OTP", "Henri Coanda", new CityResponse(12L, "Bucuresti"), "Europe/Bucharest");
+    private final AirportResponse otopeni = new AirportResponse(
+            1L, "OTP", "Henri Coanda", new CityResponse(12L, "Bucuresti", 0), "Europe/Bucharest", 0);
 
     @Test
     @DisplayName("GET /api/v1/airports -> 200 with one page of airports and their cities")
@@ -141,10 +142,12 @@ class AirportControllerTest {
     @Test
     @DisplayName("PUT /api/v1/airports/{id} -> 200 with the updated airport")
     void updateAirport() throws Exception {
-        when(airportService.update(eq(1L), any(AirportRequest.class))).thenReturn(otopeni);
+        when(airportService.update(eq(1L), any(AirportRequest.class), any(IfMatch.class)))
+                .thenReturn(otopeni);
 
         mockMvc.perform(put("/api/v1/airports/{id}", 1)
                         .with(csrf())
+                        .header("If-Match", "\"0\"")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(OTOPENI_JSON))
                 .andExpect(status().isOk());

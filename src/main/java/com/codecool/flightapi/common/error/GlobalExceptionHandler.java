@@ -50,6 +50,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.CONFLICT, "Resource already exists", ex.getMessage());
     }
 
+    @ExceptionHandler(PreconditionRequiredException.class)
+    ProblemDetail handlePreconditionRequired(PreconditionRequiredException ex) {
+        return problem(HttpStatus.PRECONDITION_REQUIRED, "Precondition required", ex.getMessage());
+    }
+
+    @ExceptionHandler(PreconditionFailedException.class)
+    ProblemDetail handlePreconditionFailed(PreconditionFailedException ex) {
+        return problem(HttpStatus.PRECONDITION_FAILED, "Precondition failed", ex.getMessage());
+    }
+
     @ExceptionHandler(TooManyRequestsException.class)
     ResponseEntity<ProblemDetail> handleTooManyRequests(TooManyRequestsException ex) {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)

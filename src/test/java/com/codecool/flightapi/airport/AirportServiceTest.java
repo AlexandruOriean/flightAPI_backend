@@ -14,6 +14,7 @@ import com.codecool.flightapi.city.CityResponse;
 import com.codecool.flightapi.city.CityService;
 import com.codecool.flightapi.common.error.ResourceAlreadyExistsException;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
+import com.codecool.flightapi.common.web.ETags.IfMatch;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
@@ -47,8 +48,8 @@ class AirportServiceTest {
     private final City london = new City(21L, "London");
     private final Airport otopeni = new Airport(1L, "OTP", "Henri Coanda", bucuresti, ZoneId.of("Europe/Bucharest"));
 
-    private final AirportResponse otopeniResponse =
-            new AirportResponse(1L, "OTP", "Henri Coanda", new CityResponse(12L, "Bucuresti"), "Europe/Bucharest");
+    private final AirportResponse otopeniResponse = new AirportResponse(
+            1L, "OTP", "Henri Coanda", new CityResponse(12L, "Bucuresti", 0), "Europe/Bucharest", 0);
 
     @BeforeEach
     void setUp() {
@@ -115,8 +116,8 @@ class AirportServiceTest {
                 airportService.create(new AirportRequest("LHR", "Heathrow", "london", "Europe/London"));
 
         assertThat(created)
-                .isEqualTo(
-                        new AirportResponse(null, "LHR", "Heathrow", new CityResponse(21L, "London"), "Europe/London"));
+                .isEqualTo(new AirportResponse(
+                        null, "LHR", "Heathrow", new CityResponse(21L, "London", 0), "Europe/London", 0));
     }
 
     @Test
@@ -148,10 +149,11 @@ class AirportServiceTest {
         when(cityService.getByName("London")).thenReturn(london);
 
         AirportResponse updated =
-                airportService.update(1L, new AirportRequest("OTP", "Otopeni", "London", "Europe/London"));
+                airportService.update(1L, new AirportRequest("OTP", "Otopeni", "London", "Europe/London"), IfMatch.ANY);
 
         assertThat(updated)
-                .isEqualTo(new AirportResponse(1L, "OTP", "Otopeni", new CityResponse(21L, "London"), "Europe/London"));
+                .isEqualTo(new AirportResponse(
+                        1L, "OTP", "Otopeni", new CityResponse(21L, "London", 0), "Europe/London", 0));
         assertThat(otopeni.getTimeZone()).isEqualTo(ZoneId.of("Europe/London"));
         verify(events).publishEvent(new AirportTimeZoneChanged(1L));
     }
@@ -162,7 +164,7 @@ class AirportServiceTest {
         when(airportRepository.findByIataCode("OTP")).thenReturn(Optional.of(otopeni));
         when(cityService.getByName("Bucuresti")).thenReturn(bucuresti);
 
-        airportService.update(1L, new AirportRequest("OTP", "Otopeni", "Bucuresti", "Europe/Bucharest"));
+        airportService.update(1L, new AirportRequest("OTP", "Otopeni", "Bucuresti", "Europe/Bucharest"), IfMatch.ANY);
 
         verifyNoInteractions(events);
     }
@@ -174,7 +176,7 @@ class AirportServiceTest {
         when(airportRepository.findByIataCode("LHR")).thenReturn(Optional.of(heathrow));
 
         assertThatThrownBy(() -> airportService.update(
-                        1L, new AirportRequest("LHR", "Otopeni", "Bucuresti", "Europe/Bucharest")))
+                        1L, new AirportRequest("LHR", "Otopeni", "Bucuresti", "Europe/Bucharest"), IfMatch.ANY))
                 .isInstanceOf(ResourceAlreadyExistsException.class);
         assertThat(otopeni.getIataCode()).isEqualTo("OTP");
     }

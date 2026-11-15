@@ -7,8 +7,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.codecool.flightapi.common.error.PreconditionFailedException;
 import com.codecool.flightapi.common.error.ResourceAlreadyExistsException;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
+import com.codecool.flightapi.common.web.ETags;
+import com.codecool.flightapi.common.web.ETags.IfMatch;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,7 +61,7 @@ class AirlineServiceTest {
     void findByIdExposesIsoAsIcaoCode() {
         when(airlineRepository.findById(10000L)).thenReturn(Optional.of(tarom));
 
-        assertThat(airlineService.findById(10000L)).isEqualTo(new AirlineResponse(10000L, "Tarom", "ROT"));
+        assertThat(airlineService.findById(10000L)).isEqualTo(new AirlineResponse(10000L, "Tarom", "ROT", 0));
     }
 
     @Test
@@ -86,7 +89,7 @@ class AirlineServiceTest {
 
         AirlineResponse created = airlineService.create(new AirlineRequest("British Airways", "BAW"));
 
-        assertThat(created).isEqualTo(new AirlineResponse(null, "British Airways", "BAW"));
+        assertThat(created).isEqualTo(new AirlineResponse(null, "British Airways", "BAW", 0));
     }
 
     @Test
@@ -104,9 +107,20 @@ class AirlineServiceTest {
         when(airlineRepository.findByIcaoCode("ROT")).thenReturn(Optional.of(tarom));
 
         AirlineResponse updated =
-                airlineService.update(10000L, new AirlineRequest("TAROM Romanian Air Transport", "ROT"));
+                airlineService.update(10000L, new AirlineRequest("TAROM Romanian Air Transport", "ROT"), IfMatch.ANY);
 
-        assertThat(updated).isEqualTo(new AirlineResponse(10000L, "TAROM Romanian Air Transport", "ROT"));
+        assertThat(updated).isEqualTo(new AirlineResponse(10000L, "TAROM Romanian Air Transport", "ROT", 0));
+    }
+
+    @Test
+    void updateChecksIfMatchAgainstTheCurrentVersionBeforeChangingAnything() {
+        when(airlineRepository.findById(10000L)).thenReturn(Optional.of(tarom));
+
+        assertThatThrownBy(() ->
+                        airlineService.update(10000L, new AirlineRequest("Renamed", "ROT"), ETags.ifMatch("\"5\"")))
+                .isInstanceOf(PreconditionFailedException.class);
+        assertThat(tarom.getName()).isEqualTo("Tarom");
+        verify(airlineRepository, never()).flush();
     }
 
     @Test

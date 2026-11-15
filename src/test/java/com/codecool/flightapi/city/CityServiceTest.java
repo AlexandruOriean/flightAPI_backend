@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.codecool.flightapi.common.error.ResourceAlreadyExistsException;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
+import com.codecool.flightapi.common.web.ETags.IfMatch;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,7 +49,7 @@ class CityServiceTest {
         Page<CityResponse> page = cityService.findAll(PageRequest.of(0, 2, Sort.by("name")));
 
         assertThat(page.getContent())
-                .containsExactly(new CityResponse(12L, "Bucuresti"), new CityResponse(21L, "London"));
+                .containsExactly(new CityResponse(12L, "Bucuresti", 0), new CityResponse(21L, "London", 0));
         assertThat(page.getTotalElements()).isEqualTo(3);
     }
 
@@ -56,7 +57,7 @@ class CityServiceTest {
     void findByIdReturnsTheCity() {
         when(cityRepository.findById(21L)).thenReturn(Optional.of(london));
 
-        assertThat(cityService.findById(21L)).isEqualTo(new CityResponse(21L, "London"));
+        assertThat(cityService.findById(21L)).isEqualTo(new CityResponse(21L, "London", 0));
     }
 
     @Test
@@ -91,7 +92,7 @@ class CityServiceTest {
 
         CityResponse created = cityService.create(new CityRequest("Paris"));
 
-        assertThat(created).isEqualTo(new CityResponse(null, "Paris"));
+        assertThat(created).isEqualTo(new CityResponse(null, "Paris", 0));
         verify(cityRepository).save(argThat(city -> "paris".equals(city.getNameKey())));
     }
 
@@ -110,9 +111,9 @@ class CityServiceTest {
         when(cityRepository.findById(21L)).thenReturn(Optional.of(london));
         when(cityRepository.findByNameKey("london")).thenReturn(Optional.of(london));
 
-        CityResponse updated = cityService.update(21L, new CityRequest("LONDON"));
+        CityResponse updated = cityService.update(21L, new CityRequest("LONDON"), IfMatch.ANY);
 
-        assertThat(updated).isEqualTo(new CityResponse(21L, "LONDON"));
+        assertThat(updated).isEqualTo(new CityResponse(21L, "LONDON", 0));
         assertThat(london.getNameKey()).isEqualTo("london");
     }
 
@@ -121,7 +122,7 @@ class CityServiceTest {
         when(cityRepository.findById(21L)).thenReturn(Optional.of(london));
         when(cityRepository.findByNameKey("bucuresti")).thenReturn(Optional.of(new City(12L, "Bucuresti")));
 
-        assertThatThrownBy(() -> cityService.update(21L, new CityRequest("Bucuresti")))
+        assertThatThrownBy(() -> cityService.update(21L, new CityRequest("Bucuresti"), IfMatch.ANY))
                 .isInstanceOf(ResourceAlreadyExistsException.class);
         assertThat(london.getName()).isEqualTo("London");
     }
@@ -130,7 +131,7 @@ class CityServiceTest {
     void updateThrowsNotFoundForUnknownId() {
         when(cityRepository.findById(1L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> cityService.update(1L, new CityRequest("Paris")))
+        assertThatThrownBy(() -> cityService.update(1L, new CityRequest("Paris"), IfMatch.ANY))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 

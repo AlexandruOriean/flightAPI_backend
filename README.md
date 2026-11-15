@@ -119,6 +119,11 @@ Login and registration are rate-limited per client IP; over the limit the API an
 Lists and the flight search are paged with `?page=0&size=20` (maximum 100) and return
 `{"content": [...], "page": {...}}`.
 Flight times are ISO date-times in each airport's local time, prices `{"amount": 35.00, "currency": "GBP"}`.
+
+Updates are conditional, so nobody overwrites a change they have not seen: `GET /{id}` (and `POST`) return an
+`ETag` header, e.g. `"3"`; send it back as `If-Match: "3"` with the `PUT`. Without `If-Match` the API answers
+`428`; if the resource changed in the meantime, `412`: reload it and apply the change again. The `PUT` response
+carries the new `ETag`.
 Flights reference airports by IATA code (`OTP`), airlines by ICAO code (`ROT`) and, optionally, an aircraft type
 by its ICAO type designator (`A320`, `B738`); an aircraft type cannot be deleted while flights use it.
 

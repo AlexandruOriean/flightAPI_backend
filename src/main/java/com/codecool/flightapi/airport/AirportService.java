@@ -1,8 +1,10 @@
 package com.codecool.flightapi.airport;
 
 import com.codecool.flightapi.city.CityService;
+import com.codecool.flightapi.common.error.PreconditionFailedException;
 import com.codecool.flightapi.common.error.ResourceAlreadyExistsException;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
+import com.codecool.flightapi.common.web.ETags.IfMatch;
 import com.codecool.flightapi.common.web.Pages;
 import java.time.ZoneId;
 import java.util.List;
@@ -80,10 +82,15 @@ public class AirportService {
         return airportMapper.toResponse(airportRepository.save(airport));
     }
 
-    /** A new time zone publishes {@link AirportTimeZoneChanged}, so flights recompute their local dates. */
+    /**
+     * A new time zone publishes {@link AirportTimeZoneChanged}, so flights recompute their local dates.
+     *
+     * @throws PreconditionFailedException if {@code ifMatch} names an older version
+     */
     @Transactional
-    public AirportResponse update(Long id, AirportRequest request) {
+    public AirportResponse update(Long id, AirportRequest request, IfMatch ifMatch) {
         Airport airport = getById(id);
+        ifMatch.requireMatches(airport.getVersion());
         requireIataCodeAvailable(request.iataCode(), id);
         ZoneId previousZone = airport.getTimeZone();
         airportMapper.update(request, airport);
@@ -91,6 +98,8 @@ public class AirportService {
         if (!airport.getTimeZone().equals(previousZone)) {
             events.publishEvent(new AirportTimeZoneChanged(id));
         }
+        // write now, so the response carries the new version
+        airportRepository.flush();
         return airportMapper.toResponse(airport);
     }
 
