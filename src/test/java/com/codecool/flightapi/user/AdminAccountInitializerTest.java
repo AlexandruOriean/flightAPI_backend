@@ -10,13 +10,18 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+@ExtendWith(OutputCaptureExtension.class)
 class AdminAccountInitializerTest {
 
     private static final String PASSWORD = "admin-Secret-123";
@@ -40,10 +45,45 @@ class AdminAccountInitializerTest {
     }
 
     @Test
-    void doesNothingWhenNoPasswordIsConfigured() {
+    void onlyAuditsWhenNoPasswordIsConfigured() {
         initializer("admin", "", "").run(args);
 
-        verifyNoInteractions(userRepository, roleRepository, passwordEncoder);
+        verify(userRepository).findUsernamesByRole(RoleName.ROLE_ADMIN);
+        verify(userRepository, never()).save(any());
+        verifyNoInteractions(roleRepository, passwordEncoder);
+    }
+
+    @Test
+    void warnsAboutEveryAdminExceptTheConfiguredOne(CapturedOutput output) {
+        when(userRepository.findUsernamesByRole(RoleName.ROLE_ADMIN)).thenReturn(List.of("admin", "mallory", "zed"));
+        when(userRepository.getByUsername("admin")).thenReturn(Optional.of(existingAdmin()));
+
+        initializer("Admin", "admin@example.com", PASSWORD).run(args);
+
+        assertThat(output).contains("Accounts with ROLE_ADMIN other than the configured admin: [mallory, zed]");
+    }
+
+    @Test
+    void warnsAboutAdminsAlsoWithoutAConfiguredAdmin(CapturedOutput output) {
+        when(userRepository.findUsernamesByRole(RoleName.ROLE_ADMIN)).thenReturn(List.of("mallory"));
+
+        initializer("admin", "", "").run(args);
+
+        assertThat(output).contains("Accounts with ROLE_ADMIN other than the configured admin: [mallory]");
+    }
+
+    @Test
+    void staysQuietWhenTheConfiguredAdminIsTheOnlyOne(CapturedOutput output) {
+        when(userRepository.findUsernamesByRole(RoleName.ROLE_ADMIN)).thenReturn(List.of("admin"));
+        when(userRepository.getByUsername("admin")).thenReturn(Optional.of(existingAdmin()));
+
+        initializer("admin", "admin@example.com", PASSWORD).run(args);
+
+        assertThat(output).doesNotContain("Accounts with ROLE_ADMIN");
+    }
+
+    private User existingAdmin() {
+        return new User(1L, "admin", "admin", "{bcrypt}hash", "admin@example.com", Set.of(userRole, adminRole));
     }
 
     @Test

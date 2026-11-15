@@ -151,6 +151,24 @@ Set the [configuration](#configuration) variables in the environment. The schema
 startup (Flyway); Hibernate only validates it. Health probes: `/actuator/health/liveness` and
 `/actuator/health/readiness`.
 
+### Admin accounts
+
+The only admin is the account from `APP_ADMIN_*`; self-registration always creates plain users. Earlier
+versions let a registration request ask for `ROLE_ADMIN`, so a database from those versions may hold admins
+nobody intended. At every startup the app logs a warning naming each account with `ROLE_ADMIN` other than the
+configured admin. It changes nothing by itself. Check each named account; to remove the role from one that
+should not have it:
+
+```sql
+DELETE FROM user_roles
+WHERE role_id = (SELECT id FROM roles WHERE name = 'ROLE_ADMIN')
+  AND user_id = (SELECT id FROM users WHERE username = 'the-username');
+```
+
+The same list by hand: `SELECT u.username FROM users u JOIN user_roles ur ON ur.user_id = u.id JOIN roles r
+ON r.id = ur.role_id WHERE r.name = 'ROLE_ADMIN';`. Tokens already issued to such an account keep their roles
+until they expire (access tokens: 15 minutes); its refresh tokens pick up the change at the next refresh.
+
 ## CI and code quality
 
 - **CI** (GitHub Actions): `./mvnw -Pprod verify` on every pull request and push to `main`, then a
