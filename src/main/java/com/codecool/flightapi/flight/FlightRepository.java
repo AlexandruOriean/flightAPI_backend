@@ -1,6 +1,6 @@
 package com.codecool.flightapi.flight;
 
-import java.time.LocalDate;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -22,32 +22,35 @@ interface FlightRepository extends JpaRepository<Flight, Long> {
     Optional<Flight> findById(Long id);
 
     /**
-     * Flights on {@code date} between two airports, each matched by exact IATA code or by a LIKE
+     * Flights departing in {@code [from, until)} between two airports, each matched by exact IATA code or by a LIKE
      * pattern on the airport or city name. Airports, cities and airline are fetched in the same query.
      *
      * @param fromCode upper-case IATA code of the departure airport
      * @param fromPattern lower-case LIKE pattern ({@code \} escapes) for the departure airport/city name
      * @param toCode upper-case IATA code of the arrival airport
      * @param toPattern lower-case LIKE pattern ({@code \} escapes) for the arrival airport/city name
+     * @param from start of the departure window, inclusive
+     * @param until end of the departure window, exclusive
      */
     @Query("""
             select f from Flight f
               join fetch f.departureAirport dep left join fetch dep.city depCity
               join fetch f.arrivalAirport arr left join fetch arr.city arrCity
               left join fetch f.airline
-            where f.departureDate = :date
+            where f.departureAt >= :from and f.departureAt < :until
               and (dep.airportIataCode = :fromCode
                    or lower(dep.airportName) like :fromPattern escape '\\'
                    or lower(depCity.cityName) like :fromPattern escape '\\')
               and (arr.airportIataCode = :toCode
                    or lower(arr.airportName) like :toPattern escape '\\'
                    or lower(arrCity.cityName) like :toPattern escape '\\')
-            order by f.departureTime
+            order by f.departureAt
             """)
     List<Flight> search(
             @Param("fromCode") String fromCode,
             @Param("fromPattern") String fromPattern,
             @Param("toCode") String toCode,
             @Param("toPattern") String toPattern,
-            @Param("date") LocalDate date);
+            @Param("from") Instant from,
+            @Param("until") Instant until);
 }

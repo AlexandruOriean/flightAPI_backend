@@ -3,7 +3,10 @@ package com.codecool.flightapi.flight;
 import com.codecool.flightapi.airline.AirlineService;
 import com.codecool.flightapi.airport.AirportService;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class FlightService {
+
+    /** Local dates span UTC-12:00 to UTC+14:00, so a local date overlaps these hours around its UTC day. */
+    private static final Duration EARLIEST_OFFSET = Duration.ofHours(14);
+
+    private static final Duration LATEST_OFFSET = Duration.ofHours(12);
 
     private final FlightRepository flightRepository;
     private final FlightMapper flightMapper;
@@ -34,13 +42,22 @@ public class FlightService {
     }
 
     /**
-     * Flights on {@code date} from one airport to another. Each airport is given either as its IATA code
-     * ({@code OTP}) or as part of the airport or city name ({@code henri}, {@code London}), ignoring case.
+     * Flights from one airport to another departing on {@code date}, in the departure airport's local time.
+     * Each airport is given either as its IATA code ({@code OTP}) or as part of the airport or city name
+     * ({@code henri}, {@code London}), ignoring case.
      */
     public List<FlightResponse> search(String from, String to, LocalDate date) {
+        Instant utcDayStart = date.atStartOfDay(ZoneOffset.UTC).toInstant();
         return flightRepository
-                .search(iataCode(from), containsPattern(from), iataCode(to), containsPattern(to), date)
+                .search(
+                        iataCode(from),
+                        containsPattern(from),
+                        iataCode(to),
+                        containsPattern(to),
+                        utcDayStart.minus(EARLIEST_OFFSET),
+                        utcDayStart.plus(Duration.ofDays(1)).plus(LATEST_OFFSET))
                 .stream()
+                .filter(flight -> departsOn(flight, date))
                 .map(flightMapper::toResponse)
                 .toList();
     }
@@ -57,7 +74,7 @@ public class FlightService {
         return flightMapper.toResponse(flightRepository.save(flight));
     }
 
-    /** Replaces schedule, price, route and airline. */
+    /** Replaces times, price, route and airline. */
     @Transactional
     public FlightResponse update(Long id, FlightRequest request) {
         Flight flight = getById(id);
@@ -79,6 +96,13 @@ public class FlightService {
         flight.setDepartureAirport(airportService.getByIataCode(request.departureAirportCode()));
         flight.setArrivalAirport(airportService.getByIataCode(request.arrivalAirportCode()));
         flight.setAirline(airlineService.getByIcaoCode(request.airlineCode()));
+    }
+
+    private static boolean departsOn(Flight flight, LocalDate date) {
+        return flight.getDepartureAt()
+                .atZone(flight.getDepartureAirport().getTimeZone())
+                .toLocalDate()
+                .equals(date);
     }
 
     private static String iataCode(String term) {

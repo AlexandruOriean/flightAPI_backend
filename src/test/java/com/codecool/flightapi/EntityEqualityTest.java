@@ -6,9 +6,12 @@ import com.codecool.flightapi.airline.Airline;
 import com.codecool.flightapi.airplane.Airplane;
 import com.codecool.flightapi.airport.Airport;
 import com.codecool.flightapi.city.City;
+import com.codecool.flightapi.common.money.Money;
 import com.codecool.flightapi.flight.Flight;
-import java.time.LocalDate;
-import java.time.LocalTime;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.util.Currency;
 import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
@@ -50,24 +53,25 @@ class EntityEqualityTest {
     @Test
     @DisplayName("flights compare by id only")
     void flightsCompareById() {
-        assertThat(flight(1L, LocalTime.of(9, 30))).isEqualTo(flight(1L, LocalTime.of(10, 30)));
-        assertThat(flight(1L, LocalTime.of(9, 30))).isNotEqualTo(flight(2L, LocalTime.of(9, 30)));
+        assertThat(flight(1L, Instant.parse("2026-12-01T07:30:00Z")))
+                .isEqualTo(flight(1L, Instant.parse("2026-12-01T08:30:00Z")));
+        assertThat(flight(1L, Instant.parse("2026-12-01T07:30:00Z")))
+                .isNotEqualTo(flight(2L, Instant.parse("2026-12-01T07:30:00Z")));
     }
 
-    private static Flight flight(Long id, LocalTime departure) {
-        Airline tarom = new Airline(1L, "Tarom", "ROT");
+    private static Flight flight(Long id, Instant departure) {
         return new Flight(
                 id,
-                LocalDate.of(2026, 12, 1),
-                100L,
                 departure,
-                departure.plusHours(2),
+                departure.plusSeconds(3 * 3600),
+                new Money(new BigDecimal("100.00"), Currency.getInstance("RON")),
                 airport(1L, "OTP"),
                 airport(2L, "LHR"),
-                tarom);
+                new Airline(1L, "Tarom", "ROT"));
     }
 
     private static Airport airport(Long id, String iataCode) {
-        return new Airport(id, iataCode, "Airport " + iataCode, new City(1L, "Bucuresti"));
+        return new Airport(
+                id, iataCode, "Airport " + iataCode, new City(1L, "Bucuresti"), ZoneId.of("Europe/Bucharest"));
     }
 }

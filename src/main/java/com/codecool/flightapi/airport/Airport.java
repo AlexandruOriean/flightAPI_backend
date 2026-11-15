@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.ZoneId;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -39,6 +40,10 @@ public class Airport {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "city_id", nullable = false)
     private City city;
+
+    /** IANA time zone, e.g. {@code Europe/Bucharest}; flight times are shown in it. */
+    @Column(name = "time_zone", nullable = false, length = 64)
+    private ZoneId timeZone;
 
     /** Identity is the database id; a new, unsaved airport only equals itself. Safe with Hibernate proxies. */
     @Override

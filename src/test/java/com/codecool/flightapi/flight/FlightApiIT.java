@@ -35,30 +35,63 @@ import org.springframework.transaction.annotation.Transactional;
 @WithMockUser(roles = "ADMIN")
 class FlightApiIT {
 
+    /** OTP 08:15 local (06:15Z) -> CDG 09:45 local (08:45Z). */
     private static final String NEW_FLIGHT = """
             {"departureAirportCode":"OTP","arrivalAirportCode":"CDG","airlineCode":"AFR",
-             "departureDate":"2026-12-01","departureTime":"08:15:00","arrivalTime":"10:45:00","price":120}
+             "departure":"2026-12-01T08:15:00+02:00","arrival":"2026-12-01T09:45:00+01:00",
+             "price":{"amount":120.50,"currency":"EUR"}}
             """;
 
     @Autowired
     private MockMvc mockMvc;
 
     @Test
-    @DisplayName("flight JSON: id, schedule, price, nested airports with city, airline with ICAO code")
+    @DisplayName("flight JSON: id, local times with offset, price with currency, airports with city and zone")
     void flightResponseShape() throws Exception {
+        // seed flight 1 (LHR -> OTP), converted by V7: 09:30 London time, 3h15 block time, GBP
         mockMvc.perform(get("/api/v1/flights/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.flight_id").doesNotExist())
-                .andExpect(jsonPath("$.departureDate").value("2020-11-01"))
-                .andExpect(jsonPath("$.departureTime").value("09:30:00"))
-                .andExpect(jsonPath("$.price").value(35))
+                .andExpect(jsonPath("$.departure").value("2020-11-01T09:30:00Z"))
+                .andExpect(jsonPath("$.arrival").value("2020-11-01T14:45:00+02:00"))
+                .andExpect(jsonPath("$.price.amount").value(35.0))
+                .andExpect(jsonPath("$.price.currency").value("GBP"))
                 .andExpect(jsonPath("$.departureAirport.iataCode").value("LHR"))
-                .andExpect(jsonPath("$.departureAirport.name").value("London Heathrow Airport"))
+                .andExpect(jsonPath("$.departureAirport.timeZone").value("Europe/London"))
                 .andExpect(jsonPath("$.departureAirport.city.cityName").value("London"))
-                .andExpect(jsonPath("$.arrivalAirport.city.cityName").value("Bucuresti"))
-                .andExpect(jsonPath("$.airline.name").value("Tarom"))
-                .andExpect(jsonPath("$.airline.icaoCode").value("ROT"));
+                .andExpect(jsonPath("$.arrivalAirport.timeZone").value("Europe/Bucharest"))
+                .andExpect(jsonPath("$.airline.icaoCode").value("ROT"))
+                .andExpect(jsonPath("$.departureDate").doesNotExist())
+                .andExpect(jsonPath("$.flight_id").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("V7 gave existing flights the currency of their departure airport's country")
+    void migratedPricesUseTheDepartureCountryCurrency() throws Exception {
+        mockMvc.perform(get("/api/v1/flights/2")) // OTP -> LHR
+                .andExpect(jsonPath("$.departure").value("2020-11-01T09:30:00+02:00"))
+                .andExpect(jsonPath("$.price.currency").value("RON"));
+        mockMvc.perform(get("/api/v1/flights/3")) // CDG -> OTP
+                .andExpect(jsonPath("$.departure").value("2020-11-01T09:30:00+01:00"))
+                .andExpect(jsonPath("$.price.currency").value("EUR"));
+    }
+
+    @Test
+    @DisplayName("search matches the local date at the departure airport, not the UTC date")
+    void searchUsesLocalDepartureDate() throws Exception {
+        // 00:30 in Bucharest on 2 December is still 1 December in UTC
+        mockMvc.perform(post("/api/v1/flights")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(NEW_FLIGHT
+                                .replace("2026-12-01T08:15:00+02:00", "2026-12-02T00:30:00+02:00")
+                                .replace("2026-12-01T09:45:00+01:00", "2026-12-02T02:00:00+01:00")))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/flights/OTP/CDG/2026-12-02"))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].departure").value("2026-12-02T00:30:00+02:00"));
+        mockMvc.perform(get("/api/v1/flights/OTP/CDG/2026-12-01"))
+                .andExpect(jsonPath("$.length()").value(0));
     }
 
     @Test
@@ -71,11 +104,15 @@ class FlightApiIT {
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.departureAirport.name").value("Henri Coanda International Airport"))
                 .andExpect(jsonPath("$.arrivalAirport.iataCode").value("CDG"))
-                .andExpect(jsonPath("$.airline.name").value("Air France"));
+                .andExpect(jsonPath("$.airline.name").value("Air France"))
+                .andExpect(jsonPath("$.departure").value("2026-12-01T08:15:00+02:00"))
+                .andExpect(jsonPath("$.arrival").value("2026-12-01T09:45:00+01:00"))
+                .andExpect(jsonPath("$.price.amount").value(120.5))
+                .andExpect(jsonPath("$.price.currency").value("EUR"));
     }
 
     @Test
-    @DisplayName("PUT flight replaces route, airline, schedule and price")
+    @DisplayName("PUT flight replaces route, airline, times and price")
     void updateFlight() throws Exception {
         mockMvc.perform(put("/api/v1/flights/1")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -84,7 +121,7 @@ class FlightApiIT {
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.departureAirport.iataCode").value("OTP"))
                 .andExpect(jsonPath("$.airline.icaoCode").value("AFR"))
-                .andExpect(jsonPath("$.price").value(120));
+                .andExpect(jsonPath("$.price.amount").value(120.5));
     }
 
     @Test
@@ -110,11 +147,39 @@ class FlightApiIT {
     }
 
     @Test
-    @DisplayName("POST airport with an IATA code that already exists -> 409 problem+json")
-    void duplicateAirportIsConflict() throws Exception {
+    @DisplayName("POST flight arriving before it departs, or with an unknown currency -> 400 listing the fields")
+    void inconsistentTimesAndUnknownCurrencyAreBadRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/flights")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        // arrival 06:00Z is before the 06:15Z (08:15+02:00) departure
+                        .content(NEW_FLIGHT
+                                .replace("2026-12-01T09:45:00+01:00", "2026-12-01T06:00:00Z")
+                                .replace("\"EUR\"", "\"XYZ\"")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[*].field").value(hasItem("arrivalAfterDeparture")))
+                .andExpect(jsonPath("$.errors[*].field").value(hasItem("price.knownCurrency")));
+    }
+
+    @Test
+    @DisplayName("POST airport with an unknown time zone -> 400")
+    void unknownTimeZoneIsBadRequest() throws Exception {
         mockMvc.perform(post("/api/v1/airports")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"iataCode\":\"OTP\",\"name\":\"Duplicate\",\"cityName\":\"bucuresti\"}"))
+                        .content("""
+                                {"iataCode":"BBU","name":"Aurel Vlaicu","cityName":"bucuresti","timeZone":"Mars/Olympus"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[*].field").value(hasItem("knownTimeZone")));
+    }
+
+    @Test
+    @DisplayName("POST airport with an IATA code that already exists -> 409 problem+json")
+    void duplicateAirportIsConflict() throws Exception {
+        mockMvc.perform(
+                        post("/api/v1/airports")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        "{\"iataCode\":\"OTP\",\"name\":\"Duplicate\",\"cityName\":\"bucuresti\",\"timeZone\":\"Europe/Bucharest\"}"))
                 .andExpect(status().isConflict())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
     }
@@ -122,11 +187,14 @@ class FlightApiIT {
     @Test
     @DisplayName("POST airport resolves its city by name, ignoring case")
     void createAirportByCityName() throws Exception {
-        mockMvc.perform(post("/api/v1/airports")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"iataCode\":\"BBU\",\"name\":\"Aurel Vlaicu\",\"cityName\":\"bucuresti\"}"))
+        mockMvc.perform(
+                        post("/api/v1/airports")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        "{\"iataCode\":\"BBU\",\"name\":\"Aurel Vlaicu\",\"cityName\":\"bucuresti\",\"timeZone\":\"Europe/Bucharest\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.iataCode").value("BBU"))
-                .andExpect(jsonPath("$.city.cityName").value("Bucuresti"));
+                .andExpect(jsonPath("$.city.cityName").value("Bucuresti"))
+                .andExpect(jsonPath("$.timeZone").value("Europe/Bucharest"));
     }
 }
