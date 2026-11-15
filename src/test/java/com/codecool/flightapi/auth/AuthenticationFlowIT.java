@@ -330,15 +330,16 @@ class AuthenticationFlowIT {
     }
 
     @Test
-    @DisplayName("flight search is public and returns the matching flights as a list")
+    @DisplayName("flight search is public and returns one page of the matching flights")
     void flightSearchIsPublic() throws Exception {
         mockMvc.perform(get("/api/v1/flights")
                         .param("from", "London")
                         .param("to", "Henri")
                         .param("date", "2020-11-01"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].id").value(1));
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(1))
+                .andExpect(jsonPath("$.page.totalElements").value(1));
     }
 
     @Test

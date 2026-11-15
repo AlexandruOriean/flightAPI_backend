@@ -116,7 +116,8 @@ Login and registration are rate-limited per client IP; over the limit the API an
 | `GET /api/v1/{airports,airlines,aircraft-types,cities}` (paged), `/{id}`, `GET /api/v1/airports/iata/{code}`, `GET /api/v1/airports/names` | signed-in users |
 | `POST`, `PUT /{id}`, `DELETE /{id}` on `/api/v1/{flights,airports,airlines,aircraft-types,cities}` | admin |
 
-Lists are paged with `?page=0&size=20` (maximum 100) and return `{"content": [...], "page": {...}}`.
+Lists and the flight search are paged with `?page=0&size=20` (maximum 100) and return
+`{"content": [...], "page": {...}}`.
 Flight times are ISO date-times in each airport's local time, prices `{"amount": 35.00, "currency": "GBP"}`.
 Flights reference airports by IATA code (`OTP`), airlines by ICAO code (`ROT`) and, optionally, an aircraft type
 by its ICAO type designator (`A320`, `B738`); an aircraft type cannot be deleted while flights use it.

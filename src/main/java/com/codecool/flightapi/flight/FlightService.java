@@ -6,14 +6,9 @@ import com.codecool.flightapi.airport.AirportService;
 import com.codecool.flightapi.common.error.InvalidRequestException;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
 import com.codecool.flightapi.common.web.Pages;
-import java.time.Duration;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
-import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -25,21 +20,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class FlightService {
 
-    /** Local dates span UTC-12:00 to UTC+14:00, so a local date overlaps these hours around its UTC day. */
-    private static final Duration EARLIEST_OFFSET = Duration.ofHours(14);
-
-    private static final Duration LATEST_OFFSET = Duration.ofHours(12);
-
     private static final Sort ORDER = Sort.by("departureAt", "id");
 
-    /** Shortest airport or city name term a search accepts; IATA codes have exactly this length. */
-    static final int MIN_SEARCH_TERM_LENGTH = 3;
-
     /**
-     * Most flights a search may load. Far above any real route on one day, so only overly broad terms
-     * (which match most airports) reach it; those are rejected rather than answered with a partial list.
+     * Shortest airport or city name term a search accepts; IATA codes have exactly this length. Shorter terms
+     * would match most airports and make the name patterns expensive.
      */
-    static final int MAX_SEARCH_ROWS = 500;
+    static final int MIN_SEARCH_TERM_LENGTH = 3;
 
     private final FlightRepository flightRepository;
     private final FlightMapper flightMapper;
@@ -62,34 +49,24 @@ public class FlightService {
     }
 
     /**
-     * Flights from one airport to another departing on {@code date}, in the departure airport's local time.
-     * Each airport is given either as its IATA code ({@code OTP}) or as part of the airport or city name
-     * ({@code henri}, {@code London}), ignoring case.
+     * One page of flights from one airport to another departing on {@code date}, in the departure airport's
+     * local time, ordered by departure time. Each airport is given either as its IATA code ({@code OTP}) or as
+     * part of the airport or city name ({@code henri}, {@code London}), ignoring case.
      *
-     * @throws InvalidRequestException if a term is shorter than {@value #MIN_SEARCH_TERM_LENGTH} characters, or
-     *     the terms match more than {@value #MAX_SEARCH_ROWS} flights
+     * @throws InvalidRequestException if a term is shorter than {@value #MIN_SEARCH_TERM_LENGTH} characters
      */
-    public List<FlightResponse> search(String from, String to, LocalDate date) {
+    public Page<FlightResponse> search(String from, String to, LocalDate date, Pageable pageable) {
         requireSearchTerm(from);
         requireSearchTerm(to);
-        Instant utcDayStart = date.atStartOfDay(ZoneOffset.UTC).toInstant();
-        // one row more than allowed tells a complete result from a cut-off one
-        List<Flight> flights = flightRepository.search(
-                iataCode(from),
-                containsPattern(from),
-                iataCode(to),
-                containsPattern(to),
-                utcDayStart.minus(EARLIEST_OFFSET),
-                utcDayStart.plus(Duration.ofDays(1)).plus(LATEST_OFFSET),
-                Limit.of(MAX_SEARCH_ROWS + 1));
-        if (flights.size() > MAX_SEARCH_ROWS) {
-            throw new InvalidRequestException(
-                    "The search matches too many flights. Use IATA codes or more specific airport or city names.");
-        }
-        return flights.stream()
-                .filter(flight -> departsOn(flight, date))
-                .map(flightMapper::toResponse)
-                .toList();
+        return flightRepository
+                .search(
+                        iataCode(from),
+                        containsPattern(from),
+                        iataCode(to),
+                        containsPattern(to),
+                        date,
+                        Pages.ordered(pageable, ORDER))
+                .map(flightMapper::toResponse);
     }
 
     /**
@@ -131,13 +108,6 @@ public class FlightService {
                 request.aircraftTypeCode() == null
                         ? null
                         : aircraftTypeService.getByIcaoCode(request.aircraftTypeCode()));
-    }
-
-    private static boolean departsOn(Flight flight, LocalDate date) {
-        return flight.getDepartureAt()
-                .atZone(flight.getDepartureAirport().getTimeZone())
-                .toLocalDate()
-                .equals(date);
     }
 
     private static void requireSearchTerm(String term) {

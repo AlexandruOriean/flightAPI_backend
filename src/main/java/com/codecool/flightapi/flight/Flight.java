@@ -17,6 +17,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -44,6 +45,15 @@ public class Flight {
     @Column(name = "arrival_at", nullable = false)
     @Setter(AccessLevel.NONE)
     private Instant arrivalAt;
+
+    /**
+     * The day of {@link #departureAt} in the departure airport's time zone (V16), what the flight search filters
+     * on. Kept in step whenever the departure time or airport changes; see {@link #refreshDepartureLocalDate}
+     * for changes to the airport's time zone.
+     */
+    @Column(name = "departure_local_date", nullable = false)
+    @Setter(AccessLevel.NONE)
+    private LocalDate departureLocalDate;
 
     @Embedded
     @AttributeOverride(
@@ -91,6 +101,7 @@ public class Flight {
         this.departureAirport = departureAirport;
         this.arrivalAirport = arrivalAirport;
         this.airline = airline;
+        this.departureLocalDate = localDate(departureAt, departureAirport);
     }
 
     /**
@@ -103,6 +114,24 @@ public class Flight {
         requireArrivalAfterDeparture(departureAt, arrivalAt);
         this.departureAt = departureAt;
         this.arrivalAt = arrivalAt;
+        this.departureLocalDate = localDate(departureAt, departureAirport);
+    }
+
+    public void setDepartureAirport(Airport departureAirport) {
+        this.departureAirport = departureAirport;
+        this.departureLocalDate = localDate(departureAt, departureAirport);
+    }
+
+    /** Recomputes {@link #departureLocalDate} after the departure airport's time zone changed. */
+    public void refreshDepartureLocalDate() {
+        this.departureLocalDate = localDate(departureAt, departureAirport);
+    }
+
+    /** {@code null} until both are known (a new flight gets its airport after construction). */
+    private static LocalDate localDate(Instant departureAt, Airport departureAirport) {
+        return departureAt == null || departureAirport == null
+                ? null
+                : departureAt.atZone(departureAirport.getTimeZone()).toLocalDate();
     }
 
     private static void requireArrivalAfterDeparture(Instant departureAt, Instant arrivalAt) {

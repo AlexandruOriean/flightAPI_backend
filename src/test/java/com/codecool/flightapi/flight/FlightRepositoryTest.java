@@ -9,15 +9,19 @@ import com.codecool.flightapi.airline.AirlineMapperImpl;
 import com.codecool.flightapi.airline.AirlineService;
 import com.codecool.flightapi.airport.Airport;
 import com.codecool.flightapi.airport.AirportMapperImpl;
+import com.codecool.flightapi.airport.AirportRequest;
 import com.codecool.flightapi.airport.AirportService;
 import com.codecool.flightapi.city.CityMapperImpl;
 import com.codecool.flightapi.city.CityService;
 import com.codecool.flightapi.common.money.Money;
+import com.codecool.flightapi.common.money.MoneyDto;
 import com.codecool.flightapi.common.money.MoneyMapperImpl;
 import java.math.BigDecimal;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Currency;
 import java.util.List;
@@ -30,7 +34,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -53,7 +56,8 @@ import org.springframework.test.util.ReflectionTestUtils;
     AircraftTypeMapperImpl.class,
     CityService.class,
     CityMapperImpl.class,
-    MoneyMapperImpl.class
+    MoneyMapperImpl.class,
+    DepartureLocalDateUpdater.class
 })
 class FlightRepositoryTest {
 
@@ -64,6 +68,9 @@ class FlightRepositoryTest {
 
     @Autowired
     private FlightRepository flightRepository;
+
+    @Autowired
+    private AirportService airportService;
 
     @Test
     @DisplayName("paged findAll and findById load the lazy airports, cities and airline in the same query")
@@ -111,7 +118,7 @@ class FlightRepositoryTest {
     })
     @DisplayName("flight search matches each airport by IATA code, airport name or city name")
     void searchMatchesIataCodeOrName(String from, String to) {
-        List<FlightResponse> flights = flightService.search(from, to, SEEDED_FLIGHT_DATE);
+        List<FlightResponse> flights = search(from, to, SEEDED_FLIGHT_DATE);
 
         assertThat(flights).singleElement().satisfies(flight -> {
             assertThat(flight.departureAirport().iataCode()).isEqualTo("LHR");
@@ -126,7 +133,7 @@ class FlightRepositoryTest {
     @Test
     @DisplayName("flight search respects the direction of travel")
     void searchRespectsDirection() {
-        assertThat(flightService.search("OTP", "LHR", SEEDED_FLIGHT_DATE))
+        assertThat(search("OTP", "LHR", SEEDED_FLIGHT_DATE))
                 .singleElement()
                 .satisfies(flight -> assertThat(flight.airline().name()).isEqualTo("British Airways"));
     }
@@ -135,7 +142,7 @@ class FlightRepositoryTest {
     @DisplayName("flight search returns every flight arriving at an airport from matching departures")
     void searchReturnsAllMatches() {
         // 'airport' is part of every seeded airport name
-        assertThat(flightService.search("airport", "OTP", SEEDED_FLIGHT_DATE))
+        assertThat(search("airport", "OTP", SEEDED_FLIGHT_DATE))
                 .extracting(flight -> flight.departureAirport().iataCode())
                 .containsExactlyInAnyOrder("LHR", "CDG");
     }
@@ -144,26 +151,82 @@ class FlightRepositoryTest {
     @CsvSource({"%%%, %%%", "___, ___", "'%%%', OTP"})
     @DisplayName("LIKE wildcards in the search terms match literally, not everything")
     void wildcardsAreEscaped(String from, String to) {
-        assertThat(flightService.search(from, to, SEEDED_FLIGHT_DATE)).isEmpty();
+        assertThat(search(from, to, SEEDED_FLIGHT_DATE)).isEmpty();
     }
 
     @Test
-    @DisplayName("the search query returns at most the limit, earliest departures first")
-    void searchQueryAppliesTheLimit() {
-        Instant dayStart = Instant.parse("2020-11-01T00:00:00Z");
-        // 'airport' matches every seeded airport, so all five seed flights fall in the window
-        List<Flight> flights = flightRepository.search(
-                "AIRPORT",
-                "%airport%",
-                "AIRPORT",
-                "%airport%",
-                dayStart,
-                dayStart.plus(Duration.ofDays(1)),
-                Limit.of(2));
+    @DisplayName("the search is paged in the database, earliest departures first")
+    void searchIsPaged() {
+        // 'airport' matches every seeded airport, so all five seed flights match
+        Page<FlightResponse> first =
+                flightService.search("airport", "airport", SEEDED_FLIGHT_DATE, PageRequest.of(0, 2));
+        Page<FlightResponse> last =
+                flightService.search("airport", "airport", SEEDED_FLIGHT_DATE, PageRequest.of(2, 2));
 
-        assertThat(flights)
-                .extracting(flight -> flight.getDepartureAirport().getIataCode())
+        assertThat(first.getTotalElements()).isEqualTo(5);
+        assertThat(first.getContent())
+                .extracting(flight -> flight.departureAirport().iataCode())
                 .containsExactly("OTP", "OTP");
+        assertThat(last.getContent()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("V16 gave every seeded flight its departure date in the departure airport's time zone")
+    void seededFlightsHaveTheirLocalDepartureDate() {
+        assertThat(flightRepository.findAll())
+                .isNotEmpty()
+                .allSatisfy(flight -> assertThat(flight.getDepartureLocalDate())
+                        .isEqualTo(flight.getDepartureAt()
+                                .atZone(flight.getDepartureAirport().getTimeZone())
+                                .toLocalDate()));
+    }
+
+    @Test
+    @DisplayName("a flight belongs to the day it departs in local time, not in UTC")
+    void searchUsesTheLocalDepartureDate() {
+        // 23:30 UTC on 1 November is 01:30 on 2 November in Bucharest (UTC+2)
+        FlightResponse late = flightService.create(new FlightRequest(
+                "OTP",
+                "LHR",
+                "ROT",
+                OffsetDateTime.parse("2020-11-01T23:30:00Z"),
+                OffsetDateTime.parse("2020-11-02T03:00:00Z"),
+                new MoneyDto(new BigDecimal("50.00"), "EUR"),
+                null));
+
+        assertThat(search("OTP", "LHR", SEEDED_FLIGHT_DATE.plusDays(1)))
+                .extracting(FlightResponse::id)
+                .containsExactly(late.id());
+        assertThat(search("OTP", "LHR", SEEDED_FLIGHT_DATE))
+                .extracting(FlightResponse::id)
+                .doesNotContain(late.id());
+    }
+
+    @Test
+    @DisplayName("moving an airport to another time zone recomputes its flights' local departure dates")
+    void airportTimeZoneChangeMovesItsFlights() {
+        Flight fromOtopeni = flightRepository.findAll().stream()
+                .filter(flight -> flight.getDepartureAirport().getIataCode().equals("OTP"))
+                .findFirst()
+                .orElseThrow();
+        Airport otopeni = fromOtopeni.getDepartureAirport();
+        // a zone far enough from UTC that the flight's departure falls on another day there
+        ZoneId farAway = fromOtopeni.getDepartureAt().atZone(ZoneOffset.UTC).getHour() < 11
+                ? ZoneId.of("Pacific/Pago_Pago") // UTC-11
+                : ZoneId.of("Pacific/Kiritimati"); // UTC+14
+        LocalDate newDate = fromOtopeni.getDepartureAt().atZone(farAway).toLocalDate();
+        assertThat(newDate).isNotEqualTo(SEEDED_FLIGHT_DATE);
+
+        airportService.update(
+                otopeni.getId(),
+                new AirportRequest("OTP", otopeni.getName(), otopeni.getCity().getName(), farAway.getId()));
+
+        assertThat(search("OTP", "airport", newDate))
+                .extracting(FlightResponse::id)
+                .contains(fromOtopeni.getId());
+        assertThat(search("OTP", "airport", SEEDED_FLIGHT_DATE))
+                .extracting(FlightResponse::id)
+                .doesNotContain(fromOtopeni.getId());
     }
 
     @ParameterizedTest(name = "{0}")
@@ -198,7 +261,10 @@ class FlightRepositoryTest {
     @Test
     @DisplayName("flight search returns nothing for a date without flights")
     void flightSearchOnOtherDateIsEmpty() {
-        assertThat(flightService.search("London", "Henri", SEEDED_FLIGHT_DATE.plusDays(1)))
-                .isEmpty();
+        assertThat(search("London", "Henri", SEEDED_FLIGHT_DATE.plusDays(1))).isEmpty();
+    }
+
+    private List<FlightResponse> search(String from, String to, LocalDate date) {
+        return flightService.search(from, to, date, PageRequest.of(0, 20)).getContent();
     }
 }

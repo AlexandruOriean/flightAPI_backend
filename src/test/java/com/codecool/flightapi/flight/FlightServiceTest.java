@@ -28,7 +28,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
-import java.util.Collections;
 import java.util.Currency;
 import java.util.List;
 import java.util.Optional;
@@ -37,7 +36,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Limit;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 /** Revives the flight search test that was commented out in FlightApiProjectApplicationTests, as unit tests. */
 @ExtendWith(MockitoExtension.class)
@@ -45,13 +48,8 @@ class FlightServiceTest {
 
     private static final LocalDate DATE = LocalDate.of(2021, 1, 15);
 
-    /** The UTC window that contains every local date {@link #DATE}: from UTC+14:00 to UTC-12:00. */
-    private static final Instant WINDOW_START = Instant.parse("2021-01-14T10:00:00Z");
-
-    private static final Instant WINDOW_END = Instant.parse("2021-01-16T12:00:00Z");
-
-    /** One row more than a search may return, to detect a cut-off result. */
-    private static final Limit SEARCH_LIMIT = Limit.of(FlightService.MAX_SEARCH_ROWS + 1);
+    /** The search always reads in departure order, whatever sort the client asks for. */
+    private static final Pageable FIRST_PAGE = PageRequest.of(0, 20, Sort.by("departureAt", "id"));
 
     @Mock
     private FlightRepository flightRepository;
@@ -87,11 +85,11 @@ class FlightServiceTest {
 
     @Test
     void searchShowsTimesInTheLocalTimeOfEachAirport() {
-        when(flightRepository.search(
-                        "OTOPENI", "%otopeni%", "HEATHROW", "%heathrow%", WINDOW_START, WINDOW_END, SEARCH_LIMIT))
-                .thenReturn(List.of(flight(1L, "2021-01-15T07:20:00Z", "2021-01-15T10:50:00Z")));
+        when(flightRepository.search("OTOPENI", "%otopeni%", "HEATHROW", "%heathrow%", DATE, FIRST_PAGE))
+                .thenReturn(new PageImpl<>(
+                        List.of(flight(1L, "2021-01-15T07:20:00Z", "2021-01-15T10:50:00Z")), FIRST_PAGE, 1));
 
-        assertThat(flightService.search("Otopeni", "Heathrow", DATE))
+        assertThat(flightService.search("Otopeni", "Heathrow", DATE, PageRequest.of(0, 20)))
                 .singleElement()
                 .satisfies(flight -> {
                     assertThat(flight.departure()).isEqualTo(OffsetDateTime.parse("2021-01-15T09:20:00+02:00"));
@@ -103,55 +101,35 @@ class FlightServiceTest {
     }
 
     @Test
-    void searchUsesTheLocalDateAtTheDepartureAirport() {
-        when(flightRepository.search("OTP", "%otp%", "LHR", "%lhr%", WINDOW_START, WINDOW_END, SEARCH_LIMIT))
-                .thenReturn(List.of(
-                        // 23:30 UTC on the 14th is already 01:30 on the 15th in Bucharest
-                        flight(1L, "2021-01-14T23:30:00Z", "2021-01-15T03:00:00Z"),
-                        // 22:30 UTC on the 15th is 00:30 on the 16th in Bucharest
-                        flight(2L, "2021-01-15T22:30:00Z", "2021-01-16T02:00:00Z")));
+    void searchReadsTheRequestedPageInDepartureOrder() {
+        Pageable secondPage = PageRequest.of(1, 5, Sort.by("departureAt", "id"));
+        when(flightRepository.search("OTP", "%otp%", "LHR", "%lhr%", DATE, secondPage))
+                .thenReturn(new PageImpl<>(List.of(), secondPage, 7));
 
-        assertThat(flightService.search("OTP", "LHR", DATE))
-                .extracting(FlightResponse::id)
-                .containsExactly(1L);
+        Page<FlightResponse> page = flightService.search("OTP", "LHR", DATE, PageRequest.of(1, 5, Sort.by("price")));
+
+        assertThat(page.getTotalElements()).isEqualTo(7);
+        assertThat(page.getNumber()).isEqualTo(1);
     }
 
     @Test
     void searchEscapesLikeWildcardsAndNormalizesTerms() {
-        flightService.search(" 50%_off\\ ", "lhr", DATE);
+        when(flightRepository.search(any(), any(), any(), any(), any(), any())).thenReturn(Page.empty());
 
-        verify(flightRepository)
-                .search("50%_OFF\\", "%50\\%\\_off\\\\%", "LHR", "%lhr%", WINDOW_START, WINDOW_END, SEARCH_LIMIT);
+        flightService.search(" 50%_off\\ ", "lhr", DATE, PageRequest.of(0, 20));
+
+        verify(flightRepository).search("50%_OFF\\", "%50\\%\\_off\\\\%", "LHR", "%lhr%", DATE, FIRST_PAGE);
     }
 
     @Test
     void searchRejectsTermsShorterThanThreeCharactersWithoutQuerying() {
-        assertThatThrownBy(() -> flightService.search(" ab ", "LHR", DATE))
+        assertThatThrownBy(() -> flightService.search(" ab ", "LHR", DATE, PageRequest.of(0, 20)))
                 .isInstanceOf(InvalidRequestException.class)
                 .hasMessageContaining("at least 3 characters");
-        assertThatThrownBy(() -> flightService.search("OTP", "a", DATE)).isInstanceOf(InvalidRequestException.class);
+        assertThatThrownBy(() -> flightService.search("OTP", "a", DATE, PageRequest.of(0, 20)))
+                .isInstanceOf(InvalidRequestException.class);
 
-        verify(flightRepository, never()).search(any(), any(), any(), any(), any(), any(), any());
-    }
-
-    @Test
-    void searchRejectsTermsThatMatchTooManyFlights() {
-        Flight flight = flight(1L, "2021-01-15T07:20:00Z", "2021-01-15T10:50:00Z");
-        when(flightRepository.search("AIR", "%air%", "LHR", "%lhr%", WINDOW_START, WINDOW_END, SEARCH_LIMIT))
-                .thenReturn(Collections.nCopies(FlightService.MAX_SEARCH_ROWS + 1, flight));
-
-        assertThatThrownBy(() -> flightService.search("air", "LHR", DATE))
-                .isInstanceOf(InvalidRequestException.class)
-                .hasMessageContaining("too many flights");
-    }
-
-    @Test
-    void searchReturnsAResultOfExactlyTheMaximumSize() {
-        Flight flight = flight(1L, "2021-01-15T07:20:00Z", "2021-01-15T10:50:00Z");
-        when(flightRepository.search("AIR", "%air%", "LHR", "%lhr%", WINDOW_START, WINDOW_END, SEARCH_LIMIT))
-                .thenReturn(Collections.nCopies(FlightService.MAX_SEARCH_ROWS, flight));
-
-        assertThat(flightService.search("air", "LHR", DATE)).hasSize(FlightService.MAX_SEARCH_ROWS);
+        verify(flightRepository, never()).search(any(), any(), any(), any(), any(), any());
     }
 
     @Test

@@ -141,10 +141,10 @@ class FlightApiIT {
                 .andExpect(status().isCreated());
 
         mockMvc.perform(get("/api/v1/flights?from=OTP&to=CDG&date=2026-12-02"))
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].departure").value("2026-12-02T00:30:00+02:00"));
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].departure").value("2026-12-02T00:30:00+02:00"));
         mockMvc.perform(get("/api/v1/flights?from=OTP&to=CDG&date=2026-12-01"))
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.content.length()").value(0));
     }
 
     @Test
