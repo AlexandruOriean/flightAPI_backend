@@ -1,5 +1,6 @@
 package com.codecool.flightapi.user;
 
+import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -37,15 +38,38 @@ public class AdminAccountInitializer implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        // a misconfigured admin stops the startup before anything touches the database
+        if (admin.isConfigured()) {
+            validate();
+        }
+        warnAboutUnexpectedAdmins();
         if (!admin.isConfigured()) {
             log.info("No admin account configured (app.admin.password is empty); skipping provisioning");
             return;
         }
-        validate();
 
         userRepository
                 .getByUsername(User.normalize(admin.username()))
                 .ifPresentOrElse(this::requireAdminRole, this::createAdmin);
+    }
+
+    /**
+     * Earlier versions let self-registration ask for {@code ROLE_ADMIN}. The only intended admin is
+     * the configured one, so every other admin account in an existing database is reported at each startup until
+     * someone has checked it. Nothing is changed automatically: the account may have been made admin on purpose.
+     */
+    private void warnAboutUnexpectedAdmins() {
+        String configured = admin.isConfigured() ? User.normalize(admin.username()) : null;
+        List<String> unexpected = userRepository.findUsernamesByRole(RoleName.ROLE_ADMIN).stream()
+                .filter(username -> !username.equals(configured))
+                .toList();
+        if (!unexpected.isEmpty()) {
+            log.warn(
+                    "Accounts with ROLE_ADMIN other than the configured admin: {}. Earlier versions let self-registered"
+                            + " accounts request ROLE_ADMIN; check each one and remove the role from any that should"
+                            + " not have it (see README, \"Admin accounts\").",
+                    unexpected);
+        }
     }
 
     private void validate() {
