@@ -1,6 +1,5 @@
 package com.codecool.flightapi.user;
 
-import java.util.HashSet;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,18 +69,18 @@ public class AdminAccountInitializer implements ApplicationRunner {
     }
 
     private void createAdmin() {
-        User user = new User();
-        user.setUsername(User.normalize(admin.username()));
-        user.setEmail(User.normalize(admin.email()));
-        user.setName(admin.username());
-        user.setPassword(passwordEncoder.encode(admin.password()));
-        user.setRole(new HashSet<>(Set.of(findRole(RoleName.ROLE_USER), findRole(RoleName.ROLE_ADMIN))));
-        userRepository.save(user);
+        userRepository.save(new User(
+                null,
+                admin.username(),
+                admin.username(),
+                passwordEncoder.encode(admin.password()),
+                admin.email(),
+                Set.of(findRole(RoleName.ROLE_USER), findRole(RoleName.ROLE_ADMIN))));
         log.info("Created admin account '{}'", admin.username());
     }
 
     private void requireAdminRole(User user) {
-        boolean isAdmin = user.getRole().stream().anyMatch(role -> role.getName() == RoleName.ROLE_ADMIN);
+        boolean isAdmin = user.getRoles().stream().anyMatch(role -> role.getName() == RoleName.ROLE_ADMIN);
         if (!isAdmin) {
             throw new IllegalStateException("app.admin.username '" + user.getUsername()
                     + "' belongs to an existing account without ROLE_ADMIN; refusing to promote it."

@@ -55,7 +55,7 @@ class RegistrationServiceTest {
         ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(saved.capture());
         assertThat(saved.getValue().getPassword()).isEqualTo("{bcrypt}hash");
-        assertThat(saved.getValue().getRole()).extracting(Role::getName).containsExactly(RoleName.ROLE_USER);
+        assertThat(saved.getValue().getRoles()).extracting(Role::getName).containsExactly(RoleName.ROLE_USER);
         verify(roleRepository, never()).findByName(RoleName.ROLE_ADMIN);
     }
 

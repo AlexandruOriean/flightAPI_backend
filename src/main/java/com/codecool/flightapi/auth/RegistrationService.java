@@ -39,13 +39,13 @@ public class RegistrationService {
             throw new ResourceAlreadyExistsException("E-mail is already registered.");
         }
 
-        User user = new User();
-        user.setUsername(username);
-        user.setEmail(email);
-        user.setPassword(passwordEncoder.encode(request.password()));
-        user.setName(request.name());
-        user.setRole(Set.of(findRole(RoleName.ROLE_USER)));
-        userRepository.save(user);
+        userRepository.save(new User(
+                null,
+                request.name(),
+                username,
+                passwordEncoder.encode(request.password()),
+                email,
+                Set.of(findRole(RoleName.ROLE_USER))));
     }
 
     private Role findRole(RoleName name) {
