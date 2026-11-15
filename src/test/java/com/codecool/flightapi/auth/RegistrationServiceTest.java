@@ -8,16 +8,17 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.codecool.flightapi.common.error.ResourceAlreadyExistsException;
+import com.codecool.flightapi.user.AdminAccountProperties;
 import com.codecool.flightapi.user.Role;
 import com.codecool.flightapi.user.RoleName;
 import com.codecool.flightapi.user.RoleRepository;
 import com.codecool.flightapi.user.User;
 import com.codecool.flightapi.user.UserRepository;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -34,10 +35,15 @@ class RegistrationServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
-    @InjectMocks
     private RegistrationService registrationService;
 
     private final RegisterRequest request = new RegisterRequest("alice", "Alice", "alice@example.com", "Secret123!");
+
+    @BeforeEach
+    void setUp() {
+        registrationService = new RegistrationService(
+                userRepository, roleRepository, passwordEncoder, new AdminAccountProperties("admin", "", ""));
+    }
 
     @Test
     void registersPlainUserWithEncodedPassword() {
@@ -51,6 +57,29 @@ class RegistrationServiceTest {
         assertThat(saved.getValue().getPassword()).isEqualTo("{bcrypt}hash");
         assertThat(saved.getValue().getRole()).extracting(Role::getName).containsExactly(RoleName.ROLE_USER);
         verify(roleRepository, never()).findByName(RoleName.ROLE_ADMIN);
+    }
+
+    @Test
+    void storesUsernameAndEmailInLowerCase() {
+        when(roleRepository.findByName(RoleName.ROLE_USER)).thenReturn(Optional.of(new Role(1, RoleName.ROLE_USER)));
+
+        registrationService.register(new RegisterRequest("Alice", "Alice", "Alice@Example.com", "Secret123!"));
+
+        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(saved.capture());
+        assertThat(saved.getValue().getUsername()).isEqualTo("alice");
+        assertThat(saved.getValue().getEmail()).isEqualTo("alice@example.com");
+        verify(userRepository).existsByUsername("alice");
+        verify(userRepository).existsByEmail("alice@example.com");
+    }
+
+    @Test
+    void rejectsTheAdminUsernameEvenWhenNoAdminExistsYet() {
+        assertThatThrownBy(() -> registrationService.register(
+                        new RegisterRequest("Admin", "Mallory", "mallory@example.com", "Secret123!")))
+                .isInstanceOf(ResourceAlreadyExistsException.class)
+                .hasMessage("Username is already taken.");
+        verify(userRepository, never()).save(any());
     }
 
     @Test

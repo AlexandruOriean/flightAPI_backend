@@ -18,7 +18,9 @@ import org.springframework.util.StringUtils;
  * <ul>
  *   <li>Not configured (no password): nothing happens.
  *   <li>User does not exist: it is created with ROLE_USER and ROLE_ADMIN.
- *   <li>User exists: ROLE_ADMIN is added if missing. The password is never overwritten.
+ *   <li>User exists and is an admin: nothing happens. The password is never overwritten.
+ *   <li>User exists without ROLE_ADMIN: startup fails. The account is never promoted, because its
+ *       password is whatever its owner chose at registration.
  * </ul>
  */
 @Component
@@ -51,7 +53,9 @@ public class AdminAccountInitializer implements ApplicationRunner {
         }
         validate();
 
-        userRepository.getByUsername(admin.username()).ifPresentOrElse(this::ensureAdminRole, this::createAdmin);
+        userRepository
+                .getByUsername(User.normalize(admin.username()))
+                .ifPresentOrElse(this::requireAdminRole, this::createAdmin);
     }
 
     private void validate() {
@@ -67,8 +71,8 @@ public class AdminAccountInitializer implements ApplicationRunner {
 
     private void createAdmin() {
         User user = new User();
-        user.setUsername(admin.username());
-        user.setEmail(admin.email());
+        user.setUsername(User.normalize(admin.username()));
+        user.setEmail(User.normalize(admin.email()));
         user.setName(admin.username());
         user.setPassword(passwordEncoder.encode(admin.password()));
         user.setRole(new HashSet<>(Set.of(findRole(RoleName.ROLE_USER), findRole(RoleName.ROLE_ADMIN))));
@@ -76,14 +80,14 @@ public class AdminAccountInitializer implements ApplicationRunner {
         log.info("Created admin account '{}'", admin.username());
     }
 
-    private void ensureAdminRole(User user) {
+    private void requireAdminRole(User user) {
         boolean isAdmin = user.getRole().stream().anyMatch(role -> role.getName() == RoleName.ROLE_ADMIN);
-        if (isAdmin) {
-            log.info("Admin account '{}' already exists", user.getUsername());
-            return;
+        if (!isAdmin) {
+            throw new IllegalStateException("app.admin.username '" + user.getUsername()
+                    + "' belongs to an existing account without ROLE_ADMIN; refusing to promote it."
+                    + " Choose another app.admin.username, or verify that account and grant the role in the database");
         }
-        user.getRole().add(findRole(RoleName.ROLE_ADMIN));
-        log.warn("Granted ROLE_ADMIN to existing user '{}' (configured as app.admin.username)", user.getUsername());
+        log.info("Admin account '{}' already exists", user.getUsername());
     }
 
     private Role findRole(RoleName name) {

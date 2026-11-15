@@ -36,4 +36,12 @@ public class User {
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "role_id"))
     private Set<Role> role;
+
+    /**
+     * Usernames and e-mails are stored and looked up in lower case (V9), so the unique constraints
+     * hold regardless of case: {@code Admin} and {@code admin} are the same account.
+     */
+    public static String normalize(String usernameOrEmail) {
+        return usernameOrEmail.toLowerCase(Locale.ROOT);
+    }
 }

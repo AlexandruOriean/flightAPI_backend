@@ -64,17 +64,52 @@ class AdminAccountInitializerTest {
     }
 
     @Test
-    void promotesExistingUserWithoutTouchingThePassword() {
+    void storesUsernameAndEmailInLowerCase() {
         rolesExist();
+        when(userRepository.getByUsername("admin")).thenReturn(Optional.empty());
+
+        initializer("Admin", "Admin@Example.com", PASSWORD).run(args);
+
+        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(saved.capture());
+        assertThat(saved.getValue().getUsername()).isEqualTo("admin");
+        assertThat(saved.getValue().getEmail()).isEqualTo("admin@example.com");
+    }
+
+    @Test
+    void leavesExistingAdminUntouched() {
         User existing = new User(
-                5L, "Admin", "admin", "{bcrypt}original", "admin@example.com", new HashSet<>(Set.of(userRole)));
+                5L, "Admin", "admin", "{bcrypt}original", "admin@example.com", new HashSet<>(Set.of(adminRole)));
         when(userRepository.getByUsername("admin")).thenReturn(Optional.of(existing));
 
         initializer("admin", "admin@example.com", PASSWORD).run(args);
 
-        assertThat(existing.getRole()).extracting(Role::getName).contains(RoleName.ROLE_ADMIN);
         assertThat(existing.getPassword()).isEqualTo("{bcrypt}original");
+        verify(userRepository, never()).save(any());
         verify(passwordEncoder, never()).encode(any());
+    }
+
+    @Test
+    void refusesToPromoteAnExistingNonAdminAccount() {
+        // e.g. someone self-registered the admin username before the admin was provisioned
+        User existing = new User(
+                5L, "Mallory", "admin", "{bcrypt}mallory", "mallory@example.com", new HashSet<>(Set.of(userRole)));
+        when(userRepository.getByUsername("admin")).thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() ->
+                        initializer("admin", "admin@example.com", PASSWORD).run(args))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("refusing to promote");
+        assertThat(existing.getRole()).extracting(Role::getName).containsExactly(RoleName.ROLE_USER);
+    }
+
+    @Test
+    void adminUsernameIsReservedIgnoringCase() {
+        AdminAccountProperties admin = new AdminAccountProperties("admin", "", "");
+
+        assertThat(admin.isReserved("admin")).isTrue();
+        assertThat(admin.isReserved("ADMIN")).isTrue();
+        assertThat(admin.isReserved("alice")).isFalse();
     }
 
     @Test
