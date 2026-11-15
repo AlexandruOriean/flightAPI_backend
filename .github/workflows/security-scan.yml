@@ -3,11 +3,9 @@ name: Security scan
 on:
   push:
     branches: [main]
+  # Every pull request: the check is required in protect-main, and a required check that never runs blocks
+  # the merge. Reading the cached NVD database keeps it at about half a minute.
   pull_request:
-    paths:
-      - pom.xml
-      - dependency-check-suppressions.xml
-      - .github/workflows/security-scan.yml
   schedule:
     # Daily, after nvd-update.yml, so newly published CVEs are caught even without code changes
     - cron: '0 5 * * *'
