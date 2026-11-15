@@ -2,6 +2,8 @@ package com.codecool.flightapi.flight;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -9,6 +11,15 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 interface FlightRepository extends JpaRepository<Flight, Long> {
+
+    /** Airports, their cities and the airline are lazy; load them in the same query. */
+    @Override
+    @EntityGraph(attributePaths = {"departureAirport.city", "arrivalAirport.city", "airline"})
+    List<Flight> findAll();
+
+    @Override
+    @EntityGraph(attributePaths = {"departureAirport.city", "arrivalAirport.city", "airline"})
+    Optional<Flight> findById(Long id);
 
     /**
      * Flights on {@code date} between two airports, each matched by exact IATA code or by a LIKE

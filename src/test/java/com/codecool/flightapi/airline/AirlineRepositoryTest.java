@@ -19,7 +19,7 @@ class AirlineRepositoryTest {
     @DisplayName("every seeded airline has its own ICAO designator")
     void seededAirlinesHaveTheirIcaoDesignators() {
         assertThat(airlineRepository.findAll())
-                .extracting(Airline::getName, Airline::getIso)
+                .extracting(Airline::getName, Airline::getIcaoCode)
                 .containsExactlyInAnyOrder(
                         tuple("Tarom", "ROT"),
                         tuple("British Airways", "BAW"),

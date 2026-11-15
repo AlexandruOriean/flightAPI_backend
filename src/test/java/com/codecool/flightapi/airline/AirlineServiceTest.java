@@ -61,7 +61,7 @@ class AirlineServiceTest {
 
     @Test
     void getByIcaoCodeThrowsNotFoundForUnknownCode() {
-        when(airlineRepository.findByIso("XXX")).thenReturn(Optional.empty());
+        when(airlineRepository.findByIcaoCode("XXX")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> airlineService.getByIcaoCode("XXX"))
                 .isInstanceOf(ResourceNotFoundException.class)
@@ -70,7 +70,7 @@ class AirlineServiceTest {
 
     @Test
     void createSavesTheAirline() {
-        when(airlineRepository.findByIso("BAW")).thenReturn(Optional.empty());
+        when(airlineRepository.findByIcaoCode("BAW")).thenReturn(Optional.empty());
         when(airlineRepository.save(any(Airline.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         AirlineResponse created = airlineService.create(new AirlineRequest("British Airways", "BAW"));
@@ -80,7 +80,7 @@ class AirlineServiceTest {
 
     @Test
     void createRejectsATakenIcaoCode() {
-        when(airlineRepository.findByIso("ROT")).thenReturn(Optional.of(tarom));
+        when(airlineRepository.findByIcaoCode("ROT")).thenReturn(Optional.of(tarom));
 
         assertThatThrownBy(() -> airlineService.create(new AirlineRequest("Other", "ROT")))
                 .isInstanceOf(ResourceAlreadyExistsException.class);
@@ -90,7 +90,7 @@ class AirlineServiceTest {
     @Test
     void updateCopiesNameAndCodeAndMayKeepItsOwnCode() {
         when(airlineRepository.findById(10000L)).thenReturn(Optional.of(tarom));
-        when(airlineRepository.findByIso("ROT")).thenReturn(Optional.of(tarom));
+        when(airlineRepository.findByIcaoCode("ROT")).thenReturn(Optional.of(tarom));
 
         AirlineResponse updated =
                 airlineService.update(10000L, new AirlineRequest("TAROM Romanian Air Transport", "ROT"));

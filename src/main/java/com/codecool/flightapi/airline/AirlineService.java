@@ -37,7 +37,7 @@ public class AirlineService {
      */
     public Airline getByIcaoCode(String icaoCode) {
         return airlineRepository
-                .findByIso(icaoCode)
+                .findByIcaoCode(icaoCode)
                 .orElseThrow(() -> new ResourceNotFoundException("Airline", "ICAO code", icaoCode));
     }
 
@@ -71,7 +71,7 @@ public class AirlineService {
 
     private void requireIcaoCodeAvailable(String icaoCode, Long ownId) {
         airlineRepository
-                .findByIso(icaoCode)
+                .findByIcaoCode(icaoCode)
                 .filter(existing -> !existing.getId().equals(ownId))
                 .ifPresent(existing -> {
                     throw new ResourceAlreadyExistsException(
