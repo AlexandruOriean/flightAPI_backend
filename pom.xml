@@ -62,11 +62,10 @@
         <!--
           SonarQube Cloud (https://sonarcloud.io). Analysis runs in CI after `verify`:
           ./mvnw -B -Pprod sonar:sonar (token from the SONAR_TOKEN environment variable).
-          Replace the two placeholders with the values shown in SonarQube Cloud after importing the repository.
         -->
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
-        <sonar.organization>REPLACE_WITH_SONARCLOUD_ORGANIZATION_KEY</sonar.organization>
-        <sonar.projectKey>REPLACE_WITH_SONARCLOUD_PROJECT_KEY</sonar.projectKey>
+        <sonar.organization>alexandruoriean</sonar.organization>
+        <sonar.projectKey>AlexandruOriean_flightAPI_backend</sonar.projectKey>
         <!-- Merged unit + integration coverage written by the jacoco `report` execution -->
         <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
 
