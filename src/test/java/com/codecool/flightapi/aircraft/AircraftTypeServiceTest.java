@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.codecool.flightapi.common.error.ResourceAlreadyExistsException;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
+import com.codecool.flightapi.common.web.ETags.IfMatch;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,7 +47,7 @@ class AircraftTypeServiceTest {
         when(aircraftTypeRepository.findById(1L)).thenReturn(Optional.of(a320));
 
         assertThat(aircraftTypeService.findById(1L))
-                .isEqualTo(new AircraftTypeResponse(1L, "A320", "Airbus", "A320", 840, 180));
+                .isEqualTo(new AircraftTypeResponse(1L, "A320", "Airbus", "A320", 840, 180, 0));
     }
 
     @Test
@@ -73,7 +74,7 @@ class AircraftTypeServiceTest {
         ArgumentCaptor<AircraftType> saved = ArgumentCaptor.forClass(AircraftType.class);
         verify(aircraftTypeRepository).save(saved.capture());
         assertThat(saved.getValue().getModel()).isEqualTo("A321neo");
-        assertThat(created).isEqualTo(new AircraftTypeResponse(5L, "A21N", "Airbus", "A321neo", 840, null));
+        assertThat(created).isEqualTo(new AircraftTypeResponse(5L, "A21N", "Airbus", "A321neo", 840, null, 0));
     }
 
     @Test
@@ -91,10 +92,10 @@ class AircraftTypeServiceTest {
         when(aircraftTypeRepository.findById(1L)).thenReturn(Optional.of(a320));
         when(aircraftTypeRepository.findByIcaoCode("A320")).thenReturn(Optional.of(a320));
 
-        AircraftTypeResponse updated =
-                aircraftTypeService.update(1L, new AircraftTypeRequest("A320", "Airbus", "A320ceo", 830, 186));
+        AircraftTypeResponse updated = aircraftTypeService.update(
+                1L, new AircraftTypeRequest("A320", "Airbus", "A320ceo", 830, 186), IfMatch.ANY);
 
-        assertThat(updated).isEqualTo(new AircraftTypeResponse(1L, "A320", "Airbus", "A320ceo", 830, 186));
+        assertThat(updated).isEqualTo(new AircraftTypeResponse(1L, "A320", "Airbus", "A320ceo", 830, 186, 0));
         assertThat(a320.getCruiseSpeedKmh()).isEqualTo(830);
     }
 

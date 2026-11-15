@@ -16,6 +16,7 @@ import com.codecool.flightapi.city.CityService;
 import com.codecool.flightapi.common.money.Money;
 import com.codecool.flightapi.common.money.MoneyDto;
 import com.codecool.flightapi.common.money.MoneyMapperImpl;
+import com.codecool.flightapi.common.web.ETags.IfMatch;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -219,7 +220,8 @@ class FlightRepositoryTest {
 
         airportService.update(
                 otopeni.getId(),
-                new AirportRequest("OTP", otopeni.getName(), otopeni.getCity().getName(), farAway.getId()));
+                new AirportRequest("OTP", otopeni.getName(), otopeni.getCity().getName(), farAway.getId()),
+                IfMatch.ANY);
 
         assertThat(search("OTP", "airport", newDate))
                 .extracting(FlightResponse::id)

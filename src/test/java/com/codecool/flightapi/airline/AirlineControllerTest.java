@@ -18,6 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.codecool.flightapi.common.error.ResourceAlreadyExistsException;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
+import com.codecool.flightapi.common.web.ETags.IfMatch;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -44,7 +45,7 @@ class AirlineControllerTest {
     @MockitoBean
     private AirlineService airlineService;
 
-    private final AirlineResponse tarom = new AirlineResponse(1L, "Tarom", "ROT");
+    private final AirlineResponse tarom = new AirlineResponse(1L, "Tarom", "ROT", 0);
 
     @Test
     @DisplayName("GET /api/v1/airlines -> 200 with one page of airlines")
@@ -122,10 +123,12 @@ class AirlineControllerTest {
     @Test
     @DisplayName("PUT /api/v1/airlines/{id} -> 200 with the updated airline")
     void updateAirline() throws Exception {
-        when(airlineService.update(eq(1L), any(AirlineRequest.class))).thenReturn(tarom);
+        when(airlineService.update(eq(1L), any(AirlineRequest.class), any(IfMatch.class)))
+                .thenReturn(tarom);
 
         mockMvc.perform(put("/api/v1/airlines/{id}", 1)
                         .with(csrf())
+                        .header("If-Match", "\"0\"")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Tarom\",\"icaoCode\":\"ROT\"}"))
                 .andExpect(status().isOk())

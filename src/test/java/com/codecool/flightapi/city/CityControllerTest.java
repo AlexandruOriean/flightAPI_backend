@@ -17,6 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.codecool.flightapi.common.web.ETags.IfMatch;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,7 +42,7 @@ class CityControllerTest {
     @MockitoBean
     private CityService cityService;
 
-    private final CityResponse london = new CityResponse(21L, "London");
+    private final CityResponse london = new CityResponse(21L, "London", 0);
 
     @Test
     @DisplayName("GET /api/v1/cities -> 200 with one page of cities")
@@ -98,10 +99,12 @@ class CityControllerTest {
     @Test
     @DisplayName("PUT /api/v1/cities/{id} -> 200 with the updated city")
     void updateCity() throws Exception {
-        when(cityService.update(eq(21L), any(CityRequest.class))).thenReturn(london);
+        when(cityService.update(eq(21L), any(CityRequest.class), any(IfMatch.class)))
+                .thenReturn(london);
 
         mockMvc.perform(put("/api/v1/cities/{id}", 21)
                         .with(csrf())
+                        .header("If-Match", "\"0\"")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"London\"}"))
                 .andExpect(status().isOk());

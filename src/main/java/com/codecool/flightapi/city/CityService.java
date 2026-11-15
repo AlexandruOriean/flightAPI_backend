@@ -1,7 +1,9 @@
 package com.codecool.flightapi.city;
 
+import com.codecool.flightapi.common.error.PreconditionFailedException;
 import com.codecool.flightapi.common.error.ResourceAlreadyExistsException;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
+import com.codecool.flightapi.common.web.ETags.IfMatch;
 import com.codecool.flightapi.common.web.Pages;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -57,11 +59,19 @@ public class CityService {
         return cityMapper.toResponse(cityRepository.save(cityMapper.toEntity(request)));
     }
 
+    /**
+     * Replaces the fields of an existing city with the request's.
+     *
+     * @throws PreconditionFailedException if {@code ifMatch} names an older version
+     */
     @Transactional
-    public CityResponse update(Long id, CityRequest request) {
+    public CityResponse update(Long id, CityRequest request, IfMatch ifMatch) {
         City city = getById(id);
+        ifMatch.requireMatches(city.getVersion());
         requireNameAvailable(request.name(), id);
         cityMapper.update(request, city);
+        // write now, so the response carries the new version
+        cityRepository.flush();
         return cityMapper.toResponse(city);
     }
 

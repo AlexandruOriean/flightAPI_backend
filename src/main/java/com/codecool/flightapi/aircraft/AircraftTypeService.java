@@ -1,7 +1,9 @@
 package com.codecool.flightapi.aircraft;
 
+import com.codecool.flightapi.common.error.PreconditionFailedException;
 import com.codecool.flightapi.common.error.ResourceAlreadyExistsException;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
+import com.codecool.flightapi.common.web.ETags.IfMatch;
 import com.codecool.flightapi.common.web.Pages;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -56,11 +58,19 @@ public class AircraftTypeService {
         return aircraftTypeMapper.toResponse(aircraftTypeRepository.save(aircraftTypeMapper.toEntity(request)));
     }
 
+    /**
+     * Replaces the fields of an existing aircraft type with the request's.
+     *
+     * @throws PreconditionFailedException if {@code ifMatch} names an older version
+     */
     @Transactional
-    public AircraftTypeResponse update(Long id, AircraftTypeRequest request) {
+    public AircraftTypeResponse update(Long id, AircraftTypeRequest request, IfMatch ifMatch) {
         AircraftType aircraftType = getById(id);
+        ifMatch.requireMatches(aircraftType.getVersion());
         requireIcaoCodeAvailable(request.icaoCode(), id);
         aircraftTypeMapper.update(request, aircraftType);
+        // write now, so the response carries the new version
+        aircraftTypeRepository.flush();
         return aircraftTypeMapper.toResponse(aircraftType);
     }
 

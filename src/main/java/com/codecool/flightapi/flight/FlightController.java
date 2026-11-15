@@ -1,5 +1,6 @@
 package com.codecool.flightapi.flight;
 
+import com.codecool.flightapi.common.web.ETags;
 import com.codecool.flightapi.common.web.Locations;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -10,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PagedModel;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -45,9 +48,11 @@ public class FlightController {
         return ResponseEntity.ok(new PagedModel<>(flightService.findAll(pageable)));
     }
 
+    /** The {@code ETag} header holds the version to send back in {@code If-Match} when updating. */
     @GetMapping("/{id}")
     public ResponseEntity<FlightResponse> getFlight(@PathVariable Long id) {
-        return ResponseEntity.ok(flightService.findById(id));
+        FlightResponse found = flightService.findById(id);
+        return ResponseEntity.ok().eTag(ETags.of(found.version())).body(found);
     }
 
     /**
@@ -67,13 +72,22 @@ public class FlightController {
     @PostMapping
     public ResponseEntity<FlightResponse> createFlight(@Valid @RequestBody FlightRequest request) {
         FlightResponse created = flightService.create(request);
-        return ResponseEntity.created(Locations.ofCreated(created.id())).body(created);
+        return ResponseEntity.created(Locations.ofCreated(created.id()))
+                .eTag(ETags.of(created.version()))
+                .body(created);
     }
 
+    /**
+     * Replaces the resource. Requires {@code If-Match} with the ETag from the last read: 428 without it, 412 if
+     * the resource changed since; the response carries the new ETag.
+     */
     @PutMapping("/{id}")
     public ResponseEntity<FlightResponse> updateFlight(
-            @PathVariable Long id, @Valid @RequestBody FlightRequest request) {
-        return ResponseEntity.ok(flightService.update(id, request));
+            @PathVariable Long id,
+            @RequestHeader(name = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+            @Valid @RequestBody FlightRequest request) {
+        FlightResponse updated = flightService.update(id, request, ETags.ifMatch(ifMatch));
+        return ResponseEntity.ok().eTag(ETags.of(updated.version())).body(updated);
     }
 
     @DeleteMapping("/{id}")

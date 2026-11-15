@@ -1,5 +1,6 @@
 package com.codecool.flightapi.flight;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
@@ -165,16 +167,59 @@ class FlightApiIT {
     }
 
     @Test
-    @DisplayName("PUT flight replaces route, airline, times and price")
+    @DisplayName("PUT flight with the ETag from GET replaces route, airline, times and price; the ETag changes")
     void updateFlight() throws Exception {
-        mockMvc.perform(put("/api/v1/flights/1")
+        String etag = etagOf("/api/v1/flights/1");
+
+        String newEtag = mockMvc.perform(put("/api/v1/flights/1")
+                        .header(HttpHeaders.IF_MATCH, etag)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(NEW_FLIGHT))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.departureAirport.iataCode").value("OTP"))
                 .andExpect(jsonPath("$.airline.icaoCode").value("AFR"))
+                .andExpect(jsonPath("$.price.amount").value(120.5))
+                .andExpect(jsonPath("$.version").doesNotExist())
+                .andReturn()
+                .getResponse()
+                .getHeader(HttpHeaders.ETAG);
+
+        assertThat(newEtag).isNotEqualTo(etag).isEqualTo(etagOf("/api/v1/flights/1"));
+    }
+
+    @Test
+    @DisplayName("PUT without If-Match -> 428; with the ETag of an older version -> 412; nothing is changed")
+    void updateNeedsTheCurrentEtag() throws Exception {
+        String etag = etagOf("/api/v1/flights/1");
+        mockMvc.perform(put("/api/v1/flights/1")
+                        .header(HttpHeaders.IF_MATCH, etag)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(NEW_FLIGHT))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(put("/api/v1/flights/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(NEW_FLIGHT.replace("120.50", "99.00")))
+                .andExpect(status().isPreconditionRequired())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+        // a second client still holding the first ETag
+        mockMvc.perform(put("/api/v1/flights/1")
+                        .header(HttpHeaders.IF_MATCH, etag)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(NEW_FLIGHT.replace("120.50", "99.00")))
+                .andExpect(status().isPreconditionFailed())
+                .andExpect(jsonPath("$.title").value("Precondition failed"));
+        mockMvc.perform(get("/api/v1/flights/1"))
                 .andExpect(jsonPath("$.price.amount").value(120.5));
+    }
+
+    private String etagOf(String path) throws Exception {
+        return mockMvc.perform(get(path))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getHeader(HttpHeaders.ETAG);
     }
 
     @Test

@@ -1,5 +1,9 @@
 package com.codecool.flightapi.security;
 
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.containsStringIgnoringCase;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -138,6 +142,24 @@ class AccessRulesIT {
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, FRONTEND_ORIGIN))
                 .andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS));
+    }
+
+    @Test
+    @DisplayName("CORS lets the frontend send If-Match on PUT and read ETag and Retry-After")
+    void corsAllowsConditionalUpdates() throws Exception {
+        mockMvc.perform(options("/api/v1/airlines/1")
+                        .header(HttpHeaders.ORIGIN, FRONTEND_ORIGIN)
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "PUT")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "authorization,content-type,if-match"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(
+                                HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, containsStringIgnoringCase("if-match")));
+        mockMvc.perform(get("/api/v1/flights/1").header(HttpHeaders.ORIGIN, FRONTEND_ORIGIN))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ETAG, matchesPattern("\"\\d+\"")))
+                .andExpect(header().string(
+                                HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS,
+                                allOf(containsString("ETag"), containsString("Retry-After"))));
     }
 
     @Test

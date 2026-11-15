@@ -23,6 +23,7 @@ import com.codecool.flightapi.common.error.ResourceNotFoundException;
 import com.codecool.flightapi.common.money.Money;
 import com.codecool.flightapi.common.money.MoneyDto;
 import com.codecool.flightapi.common.money.MoneyMapperImpl;
+import com.codecool.flightapi.common.web.ETags.IfMatch;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -193,7 +194,7 @@ class FlightServiceTest {
         when(airlineService.getByIcaoCode("ROT")).thenReturn(tarom);
 
         // PUT replaces the whole flight, so a request without a code clears the type
-        flightService.update(1L, request("LHR", "OTP"));
+        flightService.update(1L, request("LHR", "OTP"), IfMatch.ANY);
 
         assertThat(existing.getAircraftType()).isNull();
     }
@@ -216,7 +217,7 @@ class FlightServiceTest {
         when(airportService.getByIataCode("OTP")).thenReturn(otopeni);
         when(airlineService.getByIcaoCode("ROT")).thenReturn(tarom);
 
-        FlightResponse updated = flightService.update(1L, request("LHR", "OTP"));
+        FlightResponse updated = flightService.update(1L, request("LHR", "OTP"), IfMatch.ANY);
 
         assertThat(updated.id()).isEqualTo(1L);
         assertThat(existing.getDepartureAt()).isEqualTo(Instant.parse("2021-01-16T05:00:00Z"));

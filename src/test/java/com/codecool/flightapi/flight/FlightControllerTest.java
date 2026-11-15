@@ -21,6 +21,7 @@ import com.codecool.flightapi.airport.AirportResponse;
 import com.codecool.flightapi.city.CityResponse;
 import com.codecool.flightapi.common.error.InvalidRequestException;
 import com.codecool.flightapi.common.money.MoneyDto;
+import com.codecool.flightapi.common.web.ETags.IfMatch;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -62,10 +63,12 @@ class FlightControllerTest {
             OffsetDateTime.parse("2026-12-01T08:15:00+02:00"),
             OffsetDateTime.parse("2026-12-01T09:45:00Z"),
             new MoneyDto(new BigDecimal("35.00"), "EUR"),
-            new AirportResponse(1L, "OTP", "Henri Coanda", new CityResponse(12L, "Bucuresti"), "Europe/Bucharest"),
-            new AirportResponse(2L, "LHR", "Heathrow", new CityResponse(21L, "London"), "Europe/London"),
-            new AirlineResponse(1L, "Tarom", "ROT"),
-            null);
+            new AirportResponse(
+                    1L, "OTP", "Henri Coanda", new CityResponse(12L, "Bucuresti", 0), "Europe/Bucharest", 0),
+            new AirportResponse(2L, "LHR", "Heathrow", new CityResponse(21L, "London", 0), "Europe/London", 0),
+            new AirlineResponse(1L, "Tarom", "ROT", 0),
+            null,
+            0);
 
     @Test
     @DisplayName("GET /api/v1/flights without search parameters -> one page of flights")
@@ -219,10 +222,12 @@ class FlightControllerTest {
     @Test
     @DisplayName("PUT /api/v1/flights/{id} -> 200 with the updated flight")
     void updateFlight() throws Exception {
-        when(flightService.update(eq(7L), any(FlightRequest.class))).thenReturn(flight);
+        when(flightService.update(eq(7L), any(FlightRequest.class), any(IfMatch.class)))
+                .thenReturn(flight);
 
         mockMvc.perform(put("/api/v1/flights/{id}", 7)
                         .with(csrf())
+                        .header("If-Match", "\"0\"")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(FLIGHT_JSON))
                 .andExpect(status().isOk())

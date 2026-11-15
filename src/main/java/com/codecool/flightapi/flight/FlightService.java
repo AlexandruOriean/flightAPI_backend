@@ -4,7 +4,9 @@ import com.codecool.flightapi.aircraft.AircraftTypeService;
 import com.codecool.flightapi.airline.AirlineService;
 import com.codecool.flightapi.airport.AirportService;
 import com.codecool.flightapi.common.error.InvalidRequestException;
+import com.codecool.flightapi.common.error.PreconditionFailedException;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
+import com.codecool.flightapi.common.web.ETags.IfMatch;
 import com.codecool.flightapi.common.web.Pages;
 import java.time.LocalDate;
 import java.util.Locale;
@@ -81,13 +83,20 @@ public class FlightService {
         return flightMapper.toResponse(flightRepository.save(flight));
     }
 
-    /** Replaces times, price, route, airline and aircraft type (none if the request has no code). */
+    /**
+     * Replaces times, price, route, airline and aircraft type (none if the request has no code).
+     *
+     * @throws PreconditionFailedException if {@code ifMatch} names an older version
+     */
     @Transactional
-    public FlightResponse update(Long id, FlightRequest request) {
+    public FlightResponse update(Long id, FlightRequest request, IfMatch ifMatch) {
         Flight flight = getById(id);
+        ifMatch.requireMatches(flight.getVersion());
         flightMapper.update(request, flight);
         flight.reschedule(request.departure().toInstant(), request.arrival().toInstant());
         resolveReferences(request, flight);
+        // write now, so the response carries the new version
+        flightRepository.flush();
         return flightMapper.toResponse(flight);
     }
 

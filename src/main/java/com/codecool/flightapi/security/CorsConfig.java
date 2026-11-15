@@ -22,9 +22,9 @@ public class CorsConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(cors.allowedOrigins());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
-        config.setAllowedHeaders(List.of(HttpHeaders.AUTHORIZATION, HttpHeaders.CONTENT_TYPE));
+        config.setAllowedHeaders(List.of(HttpHeaders.AUTHORIZATION, HttpHeaders.CONTENT_TYPE, HttpHeaders.IF_MATCH));
         // POST answers 201 with the new resource's URI
-        config.setExposedHeaders(List.of(HttpHeaders.LOCATION));
+        config.setExposedHeaders(List.of(HttpHeaders.LOCATION, HttpHeaders.ETAG, HttpHeaders.RETRY_AFTER));
         // the token travels in the Authorization header, so browsers need not send cookies
         config.setAllowCredentials(false);
         config.setMaxAge(Duration.ofHours(1));
