@@ -158,6 +158,49 @@ class AuthenticationFlowIT {
     }
 
     @Test
+    @DisplayName("password change: any signed-in user; ends every other login; only the new password works")
+    void passwordChangeEndsOtherLogins() throws Exception {
+        register("pw-user", "pw-user@example.com", "");
+        String laptop = loginBody("pw-user", PASSWORD);
+        String phone = loginBody("pw-user", PASSWORD);
+
+        String changed = mockMvc.perform(post("/api/v1/auth/password")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(JsonPath.read(laptop, "$.accessToken")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currentPassword\":\"%s\",\"newPassword\":\"New-Secret-456\"}".formatted(PASSWORD)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        refresh(JsonPath.read(phone, "$.refreshToken")).andExpect(status().isUnauthorized());
+        refresh(JsonPath.read(laptop, "$.refreshToken")).andExpect(status().isUnauthorized());
+        refresh(JsonPath.read(changed, "$.refreshToken")).andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(credentials("pw-user", PASSWORD)))
+                .andExpect(status().isUnauthorized());
+        loginBody("pw-user", "New-Secret-456");
+    }
+
+    @Test
+    @DisplayName("password change: wrong current password -> 400; without a token -> 401")
+    void passwordChangeNeedsTheCurrentPasswordAndAToken() throws Exception {
+        String body = "{\"currentPassword\":\"not-my-password\",\"newPassword\":\"New-Secret-456\"}";
+        mockMvc.perform(post("/api/v1/auth/password")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(userToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("The current password is incorrect."));
+        mockMvc.perform(post("/api/v1/auth/password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isUnauthorized());
+        loginBody("it-user", PASSWORD);
+    }
+
+    @Test
     @DisplayName("refresh: unknown or missing token -> 401 / 400, without a bearer token")
     void invalidRefreshRequests() throws Exception {
         refresh("not-a-real-token").andExpect(status().isUnauthorized());

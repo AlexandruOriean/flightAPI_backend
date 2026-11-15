@@ -3,20 +3,29 @@ package com.codecool.flightapi.auth;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.codecool.flightapi.common.error.InvalidRefreshTokenException;
+import com.codecool.flightapi.common.error.InvalidRequestException;
 import com.codecool.flightapi.security.JwtTokenService;
 import com.codecool.flightapi.security.UserPrincipal;
+import com.codecool.flightapi.user.Role;
+import com.codecool.flightapi.user.RoleName;
+import com.codecool.flightapi.user.User;
+import com.codecool.flightapi.user.UserRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -24,6 +33,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
@@ -40,6 +50,12 @@ class AuthServiceTest {
     @Mock
     private RefreshTokenService refreshTokenService;
 
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private PasswordEncoder passwordEncoder;
+
     private AuthService authService;
 
     private final UserPrincipal alice = new UserPrincipal(
@@ -51,7 +67,9 @@ class AuthServiceTest {
                 authenticationManager,
                 jwtTokenService,
                 refreshTokenService,
-                new RefreshTokenProperties(Duration.ofDays(7), Duration.ofSeconds(10)));
+                new RefreshTokenProperties(Duration.ofDays(7), Duration.ofSeconds(10)),
+                userRepository,
+                passwordEncoder);
     }
 
     @Test
@@ -114,6 +132,64 @@ class AuthServiceTest {
         authService.logout(null);
         authService.logout(new LogoutRequest(null));
         verify(refreshTokenService, never()).revoke(null);
+    }
+
+    @Test
+    void changePasswordStoresTheNewHashEndsEveryLoginAndStartsANewOne() {
+        User user = user(Set.of(new Role(1, RoleName.ROLE_USER)));
+        when(userRepository.getByUsername("alice")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("old-secret", "{bcrypt}old")).thenReturn(true);
+        when(passwordEncoder.encode("new-secret")).thenReturn("{bcrypt}new");
+        when(refreshTokenService.issue(7L)).thenReturn(REFRESH);
+        stubAccessToken();
+
+        TokenResponse tokens =
+                authService.changePassword("alice", new ChangePasswordRequest("old-secret", "new-secret"));
+
+        assertThat(user.getPassword()).isEqualTo("{bcrypt}new");
+        InOrder order = inOrder(refreshTokenService);
+        order.verify(refreshTokenService).revokeAll(7L);
+        order.verify(refreshTokenService).issue(7L);
+        assertThat(tokens.refreshToken()).isEqualTo("refresh-1");
+        assertThat(tokens.roles()).containsExactly("ROLE_USER");
+    }
+
+    @Test
+    void changePasswordRejectsAWrongCurrentPasswordAndChangesNothing() {
+        User user = user(Set.of(new Role(1, RoleName.ROLE_USER)));
+        when(userRepository.getByUsername("alice")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("guess", "{bcrypt}old")).thenReturn(false);
+
+        assertThatThrownBy(() -> authService.changePassword("alice", new ChangePasswordRequest("guess", "new-secret")))
+                .isInstanceOf(InvalidRequestException.class)
+                .hasMessage("The current password is incorrect.");
+        assertThat(user.getPassword()).isEqualTo("{bcrypt}old");
+        verifyNoInteractions(refreshTokenService);
+    }
+
+    @Test
+    void anAdminPasswordNeedsTwelveCharacters() {
+        User admin = user(Set.of(new Role(1, RoleName.ROLE_USER), new Role(2, RoleName.ROLE_ADMIN)));
+        when(userRepository.getByUsername("alice")).thenReturn(Optional.of(admin));
+        when(passwordEncoder.matches("old-secret", "{bcrypt}old")).thenReturn(true);
+
+        assertThatThrownBy(
+                        () -> authService.changePassword("alice", new ChangePasswordRequest("old-secret", "short-pw1")))
+                .isInstanceOf(InvalidRequestException.class)
+                .hasMessageContaining("at least 12 characters");
+        assertThat(admin.getPassword()).isEqualTo("{bcrypt}old");
+    }
+
+    @Test
+    void changePasswordForADeletedAccountFails() {
+        when(userRepository.getByUsername("ghost")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.changePassword("ghost", new ChangePasswordRequest("a-secret", "b-secret")))
+                .isInstanceOf(InvalidRequestException.class);
+    }
+
+    private static User user(Set<Role> roles) {
+        return new User(7L, "Alice", "alice", "{bcrypt}old", "alice@example.com", roles);
     }
 
     private void stubAccessToken() {

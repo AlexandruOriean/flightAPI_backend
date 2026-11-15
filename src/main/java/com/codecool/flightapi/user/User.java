@@ -70,6 +70,11 @@ public class User {
         this.roles = new HashSet<>(roles);
     }
 
+    /** Replaces the password hash; the caller has checked the old password and hashed the new one. */
+    public void changePasswordHash(String passwordHash) {
+        this.password = passwordHash;
+    }
+
     /** The account's roles; read-only. */
     public Set<Role> getRoles() {
         return Collections.unmodifiableSet(roles);

@@ -148,6 +148,27 @@ class RefreshTokenServiceTest {
     }
 
     @Test
+    @DisplayName("revokeAll ends every login of the user, but no other user's")
+    void revokeAllEndsEveryLoginOfTheUser() {
+        User bob = userRepository.save(new User(
+                null,
+                "Bob",
+                "bob",
+                "{bcrypt}hash",
+                "bob@example.com",
+                Set.of(roleRepository.getByName(RoleName.ROLE_USER))));
+        RefreshTokenService.IssuedToken laptop = service.issue(alice.getId());
+        RefreshTokenService.IssuedToken phone = service.issue(alice.getId());
+        RefreshTokenService.IssuedToken bobs = service.issue(bob.getId());
+
+        service.revokeAll(alice.getId());
+
+        assertThatThrownBy(() -> service.rotate(laptop.value())).isInstanceOf(InvalidRefreshTokenException.class);
+        assertThatThrownBy(() -> service.rotate(phone.value())).isInstanceOf(InvalidRefreshTokenException.class);
+        assertThat(service.rotate(bobs.value()).principal().getUsername()).isEqualTo("bob");
+    }
+
+    @Test
     @DisplayName("other logins of the same user are not affected by a revoked family")
     void familiesAreIndependent() {
         RefreshTokenService.IssuedToken laptop = service.issue(alice.getId());

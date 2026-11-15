@@ -95,6 +95,12 @@ public class RefreshTokenService {
                 .ifPresent(token -> refreshTokenRepository.revokeFamily(token.getFamilyId(), clock.instant()));
     }
 
+    /** Ends every login of the user, on every device. */
+    @Transactional
+    public void revokeAll(Long userId) {
+        refreshTokenRepository.revokeAllOfUser(userId, clock.instant());
+    }
+
     /** Expired tokens can never be used again; delete them nightly. */
     @Scheduled(cron = "${app.refresh-token.cleanup-cron:0 30 3 * * *}")
     @Transactional

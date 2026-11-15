@@ -41,7 +41,9 @@ class AuthRateLimitFilter extends OncePerRequestFilter {
             RateLimitProperties properties, HandlerExceptionResolver exceptionResolver, TimeMeter timeMeter) {
         this.endpoints = List.of(
                 new LimitedEndpoint("/api/v1/auth/login", properties.login(), timeMeter),
-                new LimitedEndpoint("/api/v1/auth/register", properties.register(), timeMeter));
+                new LimitedEndpoint("/api/v1/auth/register", properties.register(), timeMeter),
+                // a stolen access token must not allow guessing the current password
+                new LimitedEndpoint("/api/v1/auth/password", properties.password(), timeMeter));
         this.exceptionResolver = exceptionResolver;
     }
 

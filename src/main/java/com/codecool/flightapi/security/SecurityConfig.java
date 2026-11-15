@@ -109,6 +109,8 @@ public class SecurityConfig {
                         // --- any signed-in user ---
                         .requestMatchers(HttpMethod.GET, "/api/v1/**")
                         .authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/password")
+                        .authenticated()
                         // --- writes ---
                         .requestMatchers(HttpMethod.POST, "/api/v1/**")
                         .hasRole("ADMIN")

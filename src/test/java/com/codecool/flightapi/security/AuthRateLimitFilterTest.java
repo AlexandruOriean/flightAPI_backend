@@ -19,6 +19,7 @@ class AuthRateLimitFilterTest {
 
     private static final String LOGIN = "/api/v1/auth/login";
     private static final String REGISTER = "/api/v1/auth/register";
+    private static final String PASSWORD = "/api/v1/auth/password";
 
     private final FakeTime time = new FakeTime();
     private final List<Exception> rejections = new ArrayList<>();
@@ -26,7 +27,8 @@ class AuthRateLimitFilterTest {
     private final AuthRateLimitFilter filter = new AuthRateLimitFilter(
             new RateLimitProperties(
                     new RateLimitProperties.Limit(3, Duration.ofMinutes(1)),
-                    new RateLimitProperties.Limit(2, Duration.ofHours(1))),
+                    new RateLimitProperties.Limit(2, Duration.ofHours(1)),
+                    new RateLimitProperties.Limit(1, Duration.ofHours(1))),
             (request, response, handler, ex) -> {
                 rejections.add(ex);
                 return new ModelAndView();
@@ -45,6 +47,13 @@ class AuthRateLimitFilterTest {
                 .isInstanceOfSatisfying(
                         TooManyRequestsException.class,
                         ex -> assertThat(ex.getRetryAfterSeconds()).isEqualTo(20));
+    }
+
+    @Test
+    @DisplayName("password changes have their own limit, so a stolen access token cannot guess the password")
+    void limitsPasswordChanges() throws Exception {
+        assertThat(attempts("POST", PASSWORD, "10.0.0.1", 2)).isEqualTo(1);
+        assertThat(attempts("POST", LOGIN, "10.0.0.1", 1)).isEqualTo(1);
     }
 
     @Test
