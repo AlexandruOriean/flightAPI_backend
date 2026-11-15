@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -68,9 +69,28 @@ class AuthenticationFlowIT {
                         .content(credentials("it-user", PASSWORD)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
-                .andExpect(jsonPath("$.roles[0]").value("ROLE_USER"));
+                .andExpect(jsonPath("$.roles[0]").value("ROLE_USER"))
+                // the token is only returned in the body, never as a (script-readable) cookie
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
 
         assertThat(userToken.split("\\.")).hasSize(3);
+    }
+
+    @Test
+    @DisplayName("logout is a POST that expires the legacy token cookie")
+    void logoutExpiresLegacyTokenCookie() throws Exception {
+        mockMvc.perform(post("/users/logout"))
+                .andExpect(status().isNoContent())
+                .andExpect(cookie().maxAge("token", 0))
+                .andExpect(cookie().path("token", "/users"))
+                .andExpect(cookie().httpOnly("token", true))
+                .andExpect(cookie().sameSite("token", "Strict"));
+    }
+
+    @Test
+    @DisplayName("logout via GET is no longer allowed")
+    void logoutViaGetIsRejected() throws Exception {
+        mockMvc.perform(get("/users/logout")).andExpect(status().isUnauthorized());
     }
 
     @Test

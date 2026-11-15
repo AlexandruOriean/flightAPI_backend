@@ -71,9 +71,7 @@ public class SecurityConfig {
                         ex -> ex.authenticationEntryPoint(unauthorizedHandler).accessDeniedHandler(accessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
                         // --- public ---
-                        .requestMatchers(HttpMethod.POST, "/users/register", "/users/login")
-                        .permitAll()
-                        .requestMatchers(HttpMethod.GET, "/users/logout")
+                        .requestMatchers(HttpMethod.POST, "/users/register", "/users/login", "/users/logout")
                         .permitAll()
                         .requestMatchers("/error")
                         .permitAll()
