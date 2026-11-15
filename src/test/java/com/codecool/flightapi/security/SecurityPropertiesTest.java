@@ -1,11 +1,14 @@
 package com.codecool.flightapi.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
 
@@ -44,6 +47,36 @@ class SecurityPropertiesTest {
                         .bindOrCreate("app.cors", CorsProperties.class)
                         .allowedOrigins())
                 .isEmpty();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"https://flights.example.com", "http://localhost:3000", "https://10.0.0.5:8443"})
+    @DisplayName("CORS: scheme, host and optional port are accepted")
+    void corsAcceptsOrigins(String origin) {
+        assertThat(bind(Map.of("app.cors.allowed-origins", origin))
+                        .bindOrCreate("app.cors", CorsProperties.class)
+                        .allowedOrigins())
+                .containsExactly(origin);
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "https://flights.example.com/", // trailing slash: browsers never send it
+                "https://flights.example.com/app",
+                "flights.example.com",
+                "*",
+                "https://*.example.com",
+                "ftp://flights.example.com",
+                "https://flights.example.com?x=1"
+            })
+    @DisplayName("CORS: anything that is not an exact origin stops the startup, naming the entry")
+    void corsRejectsWhatBrowsersNeverSend(String origin) {
+        assertThatThrownBy(() ->
+                        bind(Map.of("app.cors.allowed-origins", origin)).bindOrCreate("app.cors", CorsProperties.class))
+                .rootCause()
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("'" + origin + "' is not an origin");
     }
 
     private static Binder bind(Map<String, String> properties) {
