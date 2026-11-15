@@ -8,11 +8,11 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * Access-token settings, e.g. from the environment variables {@code JWT_SECRET} and {@code JWT_EXPIRATION_MS}.
  *
  * @param secret Base64-encoded HMAC key of at least 64 bytes (HS512), e.g. {@code openssl rand -base64 64}
- * @param expirationMs token lifetime in milliseconds
+ * @param expirationMs access-token lifetime in milliseconds; short, since a refresh token renews it
  */
 @ConfigurationProperties("app.jwt")
 public record JwtProperties(
-        String secret, @DefaultValue("3600000") long expirationMs) {
+        String secret, @DefaultValue("900000") long expirationMs) {
 
     /** How long an issued token stays valid. */
     public Duration tokenLifetime() {

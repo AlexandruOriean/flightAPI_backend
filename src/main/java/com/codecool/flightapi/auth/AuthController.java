@@ -31,6 +31,8 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenService jwtTokenService;
     private final RegistrationService registrationService;
+    private final RefreshTokenService refreshTokenService;
+    private final RefreshTokenProperties refreshTokenProperties;
 
     /** 201 on success; 409 if the username or e-mail is taken. */
     @PostMapping("/register")
@@ -40,35 +42,38 @@ public class AuthController {
     }
 
     /**
-     * 200 with the access token; 401 (problem+json) on bad credentials. The client sends the token back
-     * as {@code Authorization: Bearer <token>}; no cookie is set.
+     * 200 with an access token and a refresh token; 401 (problem+json) on bad credentials. The client sends the
+     * access token back as {@code Authorization: Bearer <token>}; no cookie is set.
      */
     @PostMapping("/login")
     public ResponseEntity<TokenResponse> loginUser(@Valid @RequestBody LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.username(), request.password()));
-        String jwt = jwtTokenService.generateToken(authentication);
-
-        UserPrincipal userDetails = (UserPrincipal) authentication.getPrincipal();
-        List<String> roles = userDetails.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .toList();
-
-        return ResponseEntity.ok(TokenResponse.bearer(
-                jwt,
-                jwtTokenService.getTokenLifetime().toSeconds(),
-                userDetails.getId(),
-                userDetails.getUsername(),
-                userDetails.getEmail(),
-                roles));
+        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+        return ResponseEntity.ok(tokens(principal, refreshTokenService.issue(principal.getId())));
     }
 
     /**
-     * 204. Tokens are stateless, so logging out means the client discards its token; it stays valid
-     * until it expires. Also expires the token cookie that earlier versions set at login.
+     * 200 with a new access token and a new refresh token; the presented refresh token is used up. 401
+     * (problem+json) if it is unknown, expired, revoked or already used.
+     */
+    @PostMapping("/refresh")
+    public ResponseEntity<TokenResponse> refresh(@Valid @RequestBody RefreshRequest request) {
+        RefreshTokenService.Rotation rotation = refreshTokenService.rotate(request.refreshToken());
+        return ResponseEntity.ok(tokens(rotation.principal(), rotation.next()));
+    }
+
+    /**
+     * 204. With a refresh token in the body, that login's refresh tokens are revoked; the access token is
+     * stateless and stays valid until it expires (minutes). Also expires the token cookie that earlier versions
+     * set at login.
      */
     @PostMapping("/logout")
-    public ResponseEntity<Void> logoutUser(HttpServletRequest request) {
+    public ResponseEntity<Void> logoutUser(
+            HttpServletRequest request, @Valid @RequestBody(required = false) LogoutRequest body) {
+        if (body != null && body.refreshToken() != null) {
+            refreshTokenService.revoke(body.refreshToken());
+        }
         ResponseCookie expired = ResponseCookie.from(LEGACY_TOKEN_COOKIE, "")
                 // the legacy cookie was set by /users/login without an explicit path, so browsers scoped it to /users
                 .path("/users")
@@ -80,5 +85,24 @@ public class AuthController {
         return ResponseEntity.noContent()
                 .header(HttpHeaders.SET_COOKIE, expired.toString())
                 .build();
+    }
+
+    private TokenResponse tokens(UserPrincipal principal, RefreshTokenService.IssuedToken refreshToken) {
+        Authentication authentication =
+                UsernamePasswordAuthenticationToken.authenticated(principal, null, principal.getAuthorities());
+        List<String> roles = principal.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .toList();
+        return new TokenResponse(
+                jwtTokenService.generateToken(authentication),
+                "Bearer",
+                jwtTokenService.getTokenLifetime().toSeconds(),
+                refreshToken.value(),
+                // every refresh token, also a rotated one, gets the full configured lifetime
+                refreshTokenProperties.lifetime().toSeconds(),
+                principal.getId(),
+                principal.getUsername(),
+                principal.getEmail(),
+                roles);
     }
 }

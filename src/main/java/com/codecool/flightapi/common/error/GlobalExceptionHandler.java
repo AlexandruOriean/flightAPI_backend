@@ -79,9 +79,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(AuthenticationException.class)
     ResponseEntity<ProblemDetail> handleAuthentication(AuthenticationException ex) {
-        String detail = ex instanceof BadCredentialsException
-                ? "Invalid username or password."
-                : "Authentication is required, or the provided bearer token is invalid or expired.";
+        String detail = switch (ex) {
+            case BadCredentialsException bad -> "Invalid username or password.";
+            case InvalidRefreshTokenException invalid -> invalid.getMessage();
+            default -> "Authentication is required, or the provided bearer token is invalid or expired.";
+        };
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .header(HttpHeaders.WWW_AUTHENTICATE, "Bearer")
                 .body(problem(HttpStatus.UNAUTHORIZED, "Unauthorized", detail));

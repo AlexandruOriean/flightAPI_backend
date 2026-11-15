@@ -13,11 +13,11 @@ import org.springframework.boot.context.properties.source.MapConfigurationProper
 class SecurityPropertiesTest {
 
     @Test
-    @DisplayName("JWT: the lifetime defaults to one hour and the secret never appears in toString")
+    @DisplayName("JWT: the lifetime defaults to 15 minutes and the secret never appears in toString")
     void jwtDefaultsAndHidesSecret() {
         JwtProperties jwt = bind(Map.of("app.jwt.secret", "c2VjcmV0")).bindOrCreate("app.jwt", JwtProperties.class);
 
-        assertThat(jwt.tokenLifetime()).isEqualTo(Duration.ofHours(1));
+        assertThat(jwt.tokenLifetime()).isEqualTo(Duration.ofMinutes(15));
         assertThat(jwt.secret()).isEqualTo("c2VjcmV0");
         assertThat(jwt.toString()).doesNotContain("c2VjcmV0");
     }
@@ -25,10 +25,10 @@ class SecurityPropertiesTest {
     @Test
     @DisplayName("JWT: expiration-ms sets the lifetime")
     void jwtExpiration() {
-        JwtProperties jwt = bind(Map.of("app.jwt.secret", "x", "app.jwt.expiration-ms", "900000"))
+        JwtProperties jwt = bind(Map.of("app.jwt.secret", "x", "app.jwt.expiration-ms", "300000"))
                 .bindOrCreate("app.jwt", JwtProperties.class);
 
-        assertThat(jwt.tokenLifetime()).isEqualTo(Duration.ofMinutes(15));
+        assertThat(jwt.tokenLifetime()).isEqualTo(Duration.ofMinutes(5));
     }
 
     @Test
