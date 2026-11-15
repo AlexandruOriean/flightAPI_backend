@@ -69,6 +69,7 @@ from the environment.
 | `APP_ADMIN_PASSWORD` | no | – | At least 12 characters. Without it no admin is created. Changing it later does not change an existing admin's password. |
 | `JWT_EXPIRATION_MS` | no | `900000` (15 min) | Access-token lifetime |
 | `REFRESH_TOKEN_LIFETIME` | no | `7d` | Refresh-token lifetime, renewed on every refresh |
+| `REFRESH_TOKEN_REUSE_GRACE` | no | `10s` | How long a used refresh token still works once more (e.g. two tabs refreshing at once); `0s` makes any reuse end the login |
 | `DB` | no (dev only) | `./data/flightDB` | H2 database file |
 
 Other settings can be overridden like any Spring Boot property, e.g. the rate limits
@@ -98,8 +99,9 @@ Full, always-current documentation: Swagger UI in the `dev` profile. Errors are
    ```
 3. **Call the API** with `Authorization: Bearer <accessToken>`.
 4. **Refresh** before or when the access token expires (`401`): `POST /api/v1/auth/refresh` with
-   `{"refreshToken": "..."}` → a new pair, same shape as login. Each refresh token works **once**; using one
-   twice ends the login, so refresh from one place in the client.
+   `{"refreshToken": "..."}` → a new pair, same shape as login. Each refresh token works **once**. Within a few
+   seconds of that (`REFRESH_TOKEN_REUSE_GRACE`, e.g. a second tab refreshing at the same moment) it works again
+   and gets its own new pair; using it later ends the login, as it may have been stolen.
 5. **Log out**: `POST /api/v1/auth/logout` with `{"refreshToken": "..."}` → `204`; the refresh token stops
    working, the access token expires within its lifetime.
 

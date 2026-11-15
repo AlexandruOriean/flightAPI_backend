@@ -26,6 +26,8 @@ class RefreshTokenServiceTest {
 
     private static final Duration LIFETIME = Duration.ofDays(7);
 
+    private static final Duration REUSE_GRACE = Duration.ofSeconds(10);
+
     @Autowired
     private RefreshTokenRepository refreshTokenRepository;
 
@@ -43,7 +45,7 @@ class RefreshTokenServiceTest {
     @BeforeEach
     void setUp() {
         service = new RefreshTokenService(
-                refreshTokenRepository, userRepository, new RefreshTokenProperties(LIFETIME), clock);
+                refreshTokenRepository, userRepository, new RefreshTokenProperties(LIFETIME, REUSE_GRACE), clock);
         alice = userRepository.save(new User(
                 null,
                 "Alice",
@@ -97,8 +99,47 @@ class RefreshTokenServiceTest {
     }
 
     @Test
-    @DisplayName("reusing a used token fails and revokes every token of that login")
+    @DisplayName("reusing a used token after the grace period fails and revokes every token of that login")
     void reuseRevokesTheFamily() {
+        RefreshTokenService.IssuedToken first = service.issue(alice.getId());
+        RefreshTokenService.IssuedToken second = service.rotate(first.value()).next();
+
+        clock.advance(REUSE_GRACE.plusSeconds(1));
+
+        assertThatThrownBy(() -> service.rotate(first.value())).isInstanceOf(InvalidRefreshTokenException.class);
+        assertThatThrownBy(() -> service.rotate(second.value())).isInstanceOf(InvalidRefreshTokenException.class);
+    }
+
+    @Test
+    @DisplayName("reuse within the grace period (two tabs refreshing at once) gets its own token, nothing revoked")
+    void reuseWithinTheGracePeriodGetsItsOwnToken() {
+        RefreshTokenService.IssuedToken first = service.issue(alice.getId());
+        RefreshTokenService.IssuedToken tabOne = service.rotate(first.value()).next();
+
+        clock.advance(REUSE_GRACE);
+        RefreshTokenService.IssuedToken tabTwo = service.rotate(first.value()).next();
+
+        assertThat(tabTwo.value()).isNotEqualTo(tabOne.value());
+        assertThat(service.rotate(tabOne.value()).principal().getUsername()).isEqualTo("alice");
+        assertThat(service.rotate(tabTwo.value()).principal().getUsername()).isEqualTo("alice");
+    }
+
+    @Test
+    @DisplayName("a revoked login stays revoked, even within the grace period")
+    void graceDoesNotReviveARevokedLogin() {
+        RefreshTokenService.IssuedToken first = service.issue(alice.getId());
+        service.rotate(first.value());
+
+        service.revoke(first.value());
+
+        assertThatThrownBy(() -> service.rotate(first.value())).isInstanceOf(InvalidRefreshTokenException.class);
+    }
+
+    @Test
+    @DisplayName("with a grace period of 0s every reuse revokes the login, even a concurrent one")
+    void zeroGraceIsStrict() {
+        service = new RefreshTokenService(
+                refreshTokenRepository, userRepository, new RefreshTokenProperties(LIFETIME, Duration.ZERO), clock);
         RefreshTokenService.IssuedToken first = service.issue(alice.getId());
         RefreshTokenService.IssuedToken second = service.rotate(first.value()).next();
 

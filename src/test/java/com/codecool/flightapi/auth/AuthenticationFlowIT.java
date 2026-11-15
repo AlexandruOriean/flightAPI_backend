@@ -49,7 +49,10 @@ import org.springframework.test.web.servlet.ResultActions;
             // every request comes from 127.0.0.1 and these tests log in and register many times;
             // the limits themselves are tested in RateLimitIT
             "app.rate-limit.login.requests=1000",
-            "app.rate-limit.register.requests=1000"
+            "app.rate-limit.register.requests=1000",
+            // these requests follow each other within milliseconds; without a grace period a reuse is
+            // always theft. The grace period is tested in RefreshTokenServiceTest with a test clock.
+            "app.refresh-token.reuse-grace=0s"
         })
 @AutoConfigureMockMvc
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
