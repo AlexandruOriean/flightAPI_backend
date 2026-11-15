@@ -175,6 +175,19 @@ class FlightApiIT {
     }
 
     @Test
+    @DisplayName("POST airport with an over-long city name or time zone -> 400 before any lookup")
+    void overlongAirportFieldsAreBadRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/airports")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                                "{\"iataCode\":\"BBU\",\"name\":\"Aurel Vlaicu\",\"cityName\":\"%s\",\"timeZone\":\"%s\"}"
+                                        .formatted("x".repeat(256), "Europe/" + "x".repeat(60))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[*].field").value(hasItem("cityName")))
+                .andExpect(jsonPath("$.errors[*].field").value(hasItem("timeZone")));
+    }
+
+    @Test
     @DisplayName("POST airport with an IATA code that already exists -> 409 problem+json")
     void duplicateAirportIsConflict() throws Exception {
         mockMvc.perform(

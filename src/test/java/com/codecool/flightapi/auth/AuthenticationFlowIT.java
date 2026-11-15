@@ -67,6 +67,16 @@ class AuthenticationFlowIT {
     }
 
     @Test
+    @DisplayName("login with an over-long username or password -> 400, not a lookup")
+    void overlongLoginIsBadRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(credentials("u".repeat(256), "p".repeat(256))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[*].field").value(containsInAnyOrder("username", "password")));
+    }
+
+    @Test
     @DisplayName("login returns a signed JWT carrying the user's roles")
     void loginIssuesTokenWithRoles() throws Exception {
         mockMvc.perform(post("/api/v1/auth/login")
