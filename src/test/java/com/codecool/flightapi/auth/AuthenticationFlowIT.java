@@ -155,7 +155,7 @@ class AuthenticationFlowIT {
                                         .formatted(PASSWORD)))
                 .andExpect(status().isConflict())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-                .andExpect(jsonPath("$.detail").value("Username is already taken."));
+                .andExpect(jsonPath("$.detail").value("Username or e-mail is already in use."));
     }
 
     @Test
@@ -165,12 +165,12 @@ class AuthenticationFlowIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(registration("IT-User", "case-variant@example.com", PASSWORD)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail").value("Username is already taken."));
+                .andExpect(jsonPath("$.detail").value("Username or e-mail is already in use."));
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(registration("it-other", "IT-User@Example.com", PASSWORD)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail").value("E-mail is already registered."));
+                .andExpect(jsonPath("$.detail").value("Username or e-mail is already in use."));
     }
 
     @Test
@@ -180,7 +180,7 @@ class AuthenticationFlowIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(registration("It-Admin", "not-the-admin@example.com", PASSWORD)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail").value("Username is already taken."));
+                .andExpect(jsonPath("$.detail").value("Username or e-mail is already in use."));
     }
 
     @Test

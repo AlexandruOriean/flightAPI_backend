@@ -77,7 +77,7 @@ class RegistrationServiceTest {
         assertThatThrownBy(() -> registrationService.register(
                         new RegisterRequest("Admin", "Mallory", "mallory@example.com", "Secret123!")))
                 .isInstanceOf(ResourceAlreadyExistsException.class)
-                .hasMessage("Username is already taken.");
+                .hasMessage("Username or e-mail is already in use.");
         verify(userRepository, never()).save(any());
     }
 
@@ -87,7 +87,7 @@ class RegistrationServiceTest {
 
         assertThatThrownBy(() -> registrationService.register(request))
                 .isInstanceOf(ResourceAlreadyExistsException.class)
-                .hasMessage("Username is already taken.");
+                .hasMessage("Username or e-mail is already in use.");
         verify(userRepository, never()).save(any());
     }
 
@@ -97,7 +97,7 @@ class RegistrationServiceTest {
 
         assertThatThrownBy(() -> registrationService.register(request))
                 .isInstanceOf(ResourceAlreadyExistsException.class)
-                .hasMessage("E-mail is already registered.");
+                .hasMessage("Username or e-mail is already in use.");
         verify(userRepository, never()).save(any());
     }
 }
