@@ -16,4 +16,14 @@
   </suppress>
 -->
 <suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+    <suppress until="2027-05-31Z">
+        <notes>
+            False positive (CPE name match on vmware:spring_boot_tools). CVE-2022-31691 is a SnakeYAML code
+            injection in the Spring Tools IDE plugins (Spring Tools 4 for Eclipse up to 4.16.0, VS Code
+            extensions up to 1.39.0), not in the spring-boot-devtools library. devtools is also optional and
+            excluded from the packaged application.
+        </notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework\.boot/spring-boot-devtools@.*$</packageUrl>
+        <cve>CVE-2022-31691</cve>
+    </suppress>
 </suppressions>

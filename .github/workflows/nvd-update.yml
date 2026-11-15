@@ -1,6 +1,7 @@
 name: NVD database update
 
-# Downloads the NVD vulnerability data once a day and keeps it in the Actions cache. The dependency scans
+# Downloads the NVD vulnerability data (NVD's JSON feed files, see pom.xml) once a day and keeps it in the
+# Actions cache. The dependency scans
 # (security-scan.yml) only read that cache, so an NVD outage fails this job, never a pull request, and the
 # scans keep using the last good copy.
 on:
@@ -19,8 +20,8 @@ jobs:
   update:
     name: Update NVD database
     runs-on: ubuntu-latest
-    # The first, full download takes longest; later runs only fetch changes since the last update
-    timeout-minutes: 60
+    # A full download from the feeds takes about a minute; later runs only fetch recent changes
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -37,7 +38,7 @@ jobs:
           key: nvd-${{ runner.os }}-${{ github.run_id }}
           restore-keys: nvd-${{ runner.os }}-
 
-      # The NVD API answers 503 at times; retry with growing pauses
+      # NVD is unavailable at times; retry with growing pauses
       - name: Update NVD database
         run: |
           for attempt in 1 2 3 4 5; do
@@ -53,8 +54,6 @@ jobs:
             echo "NVD update failed (attempt $attempt/5); retrying in ${delay}s."
             sleep "$delay"
           done
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
       # Only a complete update is saved; after a failure the scans keep the previous copy
       - name: Save NVD database
