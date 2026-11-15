@@ -158,6 +158,10 @@ java -jar target/flight-api-0.1.0-SNAPSHOT.jar
 ./mvnw -Pprod spring-boot:build-image    # OCI image ghcr.io/alexandruoriean/flight-api:<version>
 ```
 
+The image is built with Cloud Native Buildpacks (Docker required, no Dockerfile). The builder is pinned in
+`pom.xml` (`buildpacks.builder`, which also fixes the run image), so the same commit always builds the same base;
+update it deliberately to a newer [tag](https://hub.docker.com/r/paketobuildpacks/builder-noble-java-tiny/tags).
+
 Set the [configuration](#configuration) variables in the environment. The schema is migrated automatically on
 startup (Flyway); Hibernate only validates it. Health probes: `/actuator/health/liveness` and
 `/actuator/health/readiness`.
