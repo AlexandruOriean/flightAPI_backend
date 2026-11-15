@@ -58,7 +58,8 @@
 
         <!-- Coverage quality gate: merged unit + integration line coverage (90% when raised; ratchet up, never down) -->
         <jacoco.merged.file>${project.build.directory}/jacoco-merged.exec</jacoco.merged.file>
-        <jacoco.min.line.coverage>0.85</jacoco.min.line.coverage>
+        <jacoco.min.line.coverage>0.90</jacoco.min.line.coverage>
+        <jacoco.min.branch.coverage>0.85</jacoco.min.branch.coverage>
 
         <!--
           SonarQube Cloud (https://sonarcloud.io). Analysis runs in CI after `verify`:
@@ -328,6 +329,12 @@
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>${jacoco-maven-plugin.version}</version>
+                <configuration>
+                    <!-- MapStruct-generated code (null guards only), not analysed by SonarQube either -->
+                    <excludes>
+                        <exclude>**/*MapperImpl.class</exclude>
+                    </excludes>
+                </configuration>
                 <executions>
                     <execution>
                         <id>prepare-agent</id>
@@ -388,6 +395,11 @@
                                             <counter>LINE</counter>
                                             <value>COVEREDRATIO</value>
                                             <minimum>${jacoco.min.line.coverage}</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>BRANCH</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${jacoco.min.branch.coverage}</minimum>
                                         </limit>
                                     </limits>
                                 </rule>
