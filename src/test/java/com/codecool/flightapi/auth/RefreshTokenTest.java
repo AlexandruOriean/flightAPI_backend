@@ -26,7 +26,7 @@ class RefreshTokenTest {
         assertThat(token(1L, "a"))
                 .isNotEqualTo(token(2L, "a"))
                 .isNotEqualTo(unsaved)
-                .isNotEqualTo("a");
+                .isNotEqualTo(new Object());
     }
 
     private RefreshToken token(Long id, String hash) {

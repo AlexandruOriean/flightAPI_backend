@@ -50,6 +50,6 @@ class UserPrincipalTest {
                 .isEqualTo(new UserPrincipal(1L, "renamed", "other@example.com", "y", List.of()))
                 .hasSameHashCodeAs(new UserPrincipal(1L, "renamed", "other@example.com", "y", List.of()))
                 .isNotEqualTo(new UserPrincipal(2L, "ana", "ana@example.com", "x", List.of()))
-                .isNotEqualTo("ana");
+                .isNotEqualTo(new Object());
     }
 }
