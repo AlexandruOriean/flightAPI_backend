@@ -55,17 +55,17 @@ jobs:
           if [[ -z "$NVD_API_KEY" ]]; then
             unset NVD_API_KEY
           fi
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             if ./mvnw -B -Pprod,security-scan -DskipTests verify; then
               exit 0
             else
               status=$?
             fi
-            if [[ "$attempt" -eq 3 ]]; then
+            if [[ "$attempt" -eq 5 ]]; then
               exit "$status"
             fi
-            delay=$((attempt * 30))
-            echo "Dependency-check failed (attempt $attempt/3); retrying in ${delay}s."
+            delay=$((60 * 2 ** (attempt - 1)))
+            echo "Dependency-check failed (attempt $attempt/5); retrying in ${delay}s."
             sleep "$delay"
           done
         env:
