@@ -56,7 +56,7 @@ class AirportServiceTest {
         Pageable byId = PageRequest.of(0, 5, Sort.by("id"));
         when(airportRepository.findAll(byId)).thenReturn(new PageImpl<>(List.of(otopeni), byId, 1));
 
-        Page<AirportResponse> page = airportService.findAll(PageRequest.of(0, 5, Sort.by("airportName")));
+        Page<AirportResponse> page = airportService.findAll(PageRequest.of(0, 5, Sort.by("name")));
 
         assertThat(page.getContent()).containsExactly(otopeniResponse);
     }
@@ -79,14 +79,14 @@ class AirportServiceTest {
 
     @Test
     void findByIataCodeIgnoresCaseAndWhitespace() {
-        when(airportRepository.findByAirportIataCode("OTP")).thenReturn(Optional.of(otopeni));
+        when(airportRepository.findByIataCode("OTP")).thenReturn(Optional.of(otopeni));
 
         assertThat(airportService.findByIataCode(" otp ")).isEqualTo(otopeniResponse);
     }
 
     @Test
     void getByIataCodeThrowsNotFoundWithTheCodeAsGiven() {
-        when(airportRepository.findByAirportIataCode("XXX")).thenReturn(Optional.empty());
+        when(airportRepository.findByIataCode("XXX")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> airportService.getByIataCode("xxx"))
                 .isInstanceOf(ResourceNotFoundException.class)
@@ -102,7 +102,7 @@ class AirportServiceTest {
 
     @Test
     void createResolvesTheCityByName() {
-        when(airportRepository.findByAirportIataCode("LHR")).thenReturn(Optional.empty());
+        when(airportRepository.findByIataCode("LHR")).thenReturn(Optional.empty());
         when(cityService.getByName("london")).thenReturn(london);
         when(airportRepository.save(any(Airport.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -116,7 +116,7 @@ class AirportServiceTest {
 
     @Test
     void createRejectsATakenIataCode() {
-        when(airportRepository.findByAirportIataCode("OTP")).thenReturn(Optional.of(otopeni));
+        when(airportRepository.findByIataCode("OTP")).thenReturn(Optional.of(otopeni));
 
         assertThatThrownBy(() ->
                         airportService.create(new AirportRequest("OTP", "Other", "Bucuresti", "Europe/Bucharest")))
@@ -127,7 +127,7 @@ class AirportServiceTest {
 
     @Test
     void createWithUnknownCityThrowsNotFoundAndSavesNothing() {
-        when(airportRepository.findByAirportIataCode("CDG")).thenReturn(Optional.empty());
+        when(airportRepository.findByIataCode("CDG")).thenReturn(Optional.empty());
         when(cityService.getByName("Paris")).thenThrow(new ResourceNotFoundException("City", "name", "Paris"));
 
         assertThatThrownBy(() ->
@@ -139,7 +139,7 @@ class AirportServiceTest {
     @Test
     void updateMayKeepItsOwnCodeAndMoveToAnotherCity() {
         when(airportRepository.findById(1L)).thenReturn(Optional.of(otopeni));
-        when(airportRepository.findByAirportIataCode("OTP")).thenReturn(Optional.of(otopeni));
+        when(airportRepository.findByIataCode("OTP")).thenReturn(Optional.of(otopeni));
         when(cityService.getByName("London")).thenReturn(london);
 
         AirportResponse updated =
@@ -154,12 +154,12 @@ class AirportServiceTest {
     void updateRejectsTheCodeOfAnotherAirport() {
         Airport heathrow = new Airport(2L, "LHR", "Heathrow", london, ZoneId.of("Europe/London"));
         when(airportRepository.findById(1L)).thenReturn(Optional.of(otopeni));
-        when(airportRepository.findByAirportIataCode("LHR")).thenReturn(Optional.of(heathrow));
+        when(airportRepository.findByIataCode("LHR")).thenReturn(Optional.of(heathrow));
 
         assertThatThrownBy(() -> airportService.update(
                         1L, new AirportRequest("LHR", "Otopeni", "Bucuresti", "Europe/Bucharest")))
                 .isInstanceOf(ResourceAlreadyExistsException.class);
-        assertThat(otopeni.getAirportIataCode()).isEqualTo("OTP");
+        assertThat(otopeni.getIataCode()).isEqualTo("OTP");
     }
 
     @Test

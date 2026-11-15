@@ -115,8 +115,8 @@ class EntityEqualityTest {
         City city = new City(null, "Cluj");
         Set<City> cities = new HashSet<>(Set.of(city));
 
-        city.setCityId(7L);
-        city.setCityName("Cluj-Napoca");
+        city.setId(7L);
+        city.setName("Cluj-Napoca");
 
         assertThat(cities).contains(city);
     }

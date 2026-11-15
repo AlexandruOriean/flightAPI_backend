@@ -65,7 +65,7 @@ class FlightApiIT {
                 .andExpect(jsonPath("$.price.knownCurrency").doesNotExist())
                 .andExpect(jsonPath("$.departureAirport.iataCode").value("LHR"))
                 .andExpect(jsonPath("$.departureAirport.timeZone").value("Europe/London"))
-                .andExpect(jsonPath("$.departureAirport.city.cityName").value("London"))
+                .andExpect(jsonPath("$.departureAirport.city.name").value("London"))
                 .andExpect(jsonPath("$.arrivalAirport.timeZone").value("Europe/Bucharest"))
                 .andExpect(jsonPath("$.airline.icaoCode").value("ROT"))
                 .andExpect(jsonPath("$.aircraftType.icaoCode").value("B738"))
@@ -260,7 +260,7 @@ class FlightApiIT {
                                         "{\"iataCode\":\"BBU\",\"name\":\"Aurel Vlaicu\",\"cityName\":\"bucuresti\",\"timeZone\":\"Europe/Bucharest\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.iataCode").value("BBU"))
-                .andExpect(jsonPath("$.city.cityName").value("Bucuresti"))
+                .andExpect(jsonPath("$.city.name").value("Bucuresti"))
                 .andExpect(jsonPath("$.timeZone").value("Europe/Bucharest"));
     }
 }

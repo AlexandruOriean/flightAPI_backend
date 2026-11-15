@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class CityService {
 
-    private static final Sort ORDER = Sort.by("cityId");
+    private static final Sort ORDER = Sort.by("id");
 
     private final CityRepository cityRepository;
     private final CityMapper cityMapper;
@@ -42,7 +42,7 @@ public class CityService {
      */
     public City getByName(String cityName) {
         return cityRepository
-                .findByCityNameKey(City.key(cityName))
+                .findByNameKey(City.key(cityName))
                 .orElseThrow(() -> new ResourceNotFoundException("City", "name", cityName));
     }
 
@@ -53,14 +53,14 @@ public class CityService {
      */
     @Transactional
     public CityResponse create(CityRequest request) {
-        requireNameAvailable(request.cityName(), null);
+        requireNameAvailable(request.name(), null);
         return cityMapper.toResponse(cityRepository.save(cityMapper.toEntity(request)));
     }
 
     @Transactional
     public CityResponse update(Long id, CityRequest request) {
         City city = getById(id);
-        requireNameAvailable(request.cityName(), id);
+        requireNameAvailable(request.name(), id);
         cityMapper.update(request, city);
         return cityMapper.toResponse(city);
     }
@@ -76,8 +76,8 @@ public class CityService {
 
     private void requireNameAvailable(String cityName, Long ownId) {
         cityRepository
-                .findByCityNameKey(City.key(cityName))
-                .filter(existing -> !existing.getCityId().equals(ownId))
+                .findByNameKey(City.key(cityName))
+                .filter(existing -> !existing.getId().equals(ownId))
                 .ifPresent(existing -> {
                     throw new ResourceAlreadyExistsException("City '" + cityName + "' already exists.");
                 });

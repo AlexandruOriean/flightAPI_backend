@@ -8,12 +8,11 @@ import org.mapstruct.MappingTarget;
 @Mapper(config = MappingConfig.class)
 public interface CityMapper {
 
-    @Mapping(target = "id", source = "cityId")
     CityResponse toResponse(City city);
 
-    @Mapping(target = "cityId", ignore = true)
+    @Mapping(target = "id", ignore = true)
     City toEntity(CityRequest request);
 
-    @Mapping(target = "cityId", ignore = true)
+    @Mapping(target = "id", ignore = true)
     void update(CityRequest request, @MappingTarget City city);
 }

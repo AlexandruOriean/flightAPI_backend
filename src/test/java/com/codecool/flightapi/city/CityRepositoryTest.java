@@ -48,26 +48,26 @@ class CityRepositoryTest {
     @Test
     @DisplayName("lookup by name key finds the city whatever the case")
     void findsCityByNameKey() {
-        assertThat(cityRepository.findByCityNameKey(City.key(" lONdon ")))
-                .hasValueSatisfying(city -> assertThat(city.getCityName()).isEqualTo("London"));
+        assertThat(cityRepository.findByNameKey(City.key(" lONdon ")))
+                .hasValueSatisfying(city -> assertThat(city.getName()).isEqualTo("London"));
     }
 
     @Test
     @DisplayName("renaming a city keeps its name key in step")
     void renameUpdatesKey() {
-        cityId = cityRepository.save(new City(null, "Cluj")).getCityId();
+        cityId = cityRepository.save(new City(null, "Cluj")).getId();
         new TransactionTemplate(transactionManager)
                 .executeWithoutResult(
-                        tx -> cityRepository.findById(cityId).orElseThrow().setCityName("Cluj-Napoca"));
+                        tx -> cityRepository.findById(cityId).orElseThrow().setName("Cluj-Napoca"));
 
-        assertThat(cityRepository.findByCityNameKey("cluj-napoca")).isPresent();
-        assertThat(cityRepository.findByCityNameKey("cluj")).isEmpty();
+        assertThat(cityRepository.findByNameKey("cluj-napoca")).isPresent();
+        assertThat(cityRepository.findByNameKey("cluj")).isEmpty();
     }
 
     @Test
     @DisplayName("of two overlapping updates of one city, the second fails instead of overwriting the first")
     void concurrentUpdateFails() {
-        cityId = cityRepository.save(new City(null, "Cluj")).getCityId();
+        cityId = cityRepository.save(new City(null, "Cluj")).getId();
         TransactionTemplate tx = new TransactionTemplate(transactionManager);
 
         assertThatThrownBy(() -> tx.executeWithoutResult(first -> {
@@ -79,13 +79,13 @@ class CityRepositoryTest {
                             .executeWithoutResult(second -> cityRepository
                                     .findById(cityId)
                                     .orElseThrow()
-                                    .setCityName("Cluj-Napoca"));
-                    stale.setCityName("Kolozsvar");
+                                    .setName("Cluj-Napoca"));
+                    stale.setName("Kolozsvar");
                 }))
                 .isInstanceOf(ObjectOptimisticLockingFailureException.class);
 
         City city = cityRepository.findById(cityId).orElseThrow();
-        assertThat(city.getCityName()).isEqualTo("Cluj-Napoca");
+        assertThat(city.getName()).isEqualTo("Cluj-Napoca");
         assertThat(city.getVersion()).isEqualTo(1);
     }
 }
