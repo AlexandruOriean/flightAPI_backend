@@ -4,6 +4,8 @@ import com.codecool.flightapi.common.web.Locations;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PagedModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,9 +23,10 @@ public class AirportController {
 
     private final AirportService airportService;
 
+    /** One page of airports: {@code ?page=0&size=20}. */
     @GetMapping
-    public ResponseEntity<List<AirportResponse>> getAirports() {
-        return ResponseEntity.ok(airportService.findAll());
+    public ResponseEntity<PagedModel<AirportResponse>> getAirports(Pageable pageable) {
+        return ResponseEntity.ok(new PagedModel<>(airportService.findAll(pageable)));
     }
 
     @GetMapping("/{id}")

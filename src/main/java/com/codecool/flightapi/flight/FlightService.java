@@ -3,6 +3,7 @@ package com.codecool.flightapi.flight;
 import com.codecool.flightapi.airline.AirlineService;
 import com.codecool.flightapi.airport.AirportService;
 import com.codecool.flightapi.common.error.ResourceNotFoundException;
+import com.codecool.flightapi.common.web.Pages;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -10,6 +11,9 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,13 +27,16 @@ public class FlightService {
 
     private static final Duration LATEST_OFFSET = Duration.ofHours(12);
 
+    private static final Sort ORDER = Sort.by("departureAt", "id");
+
     private final FlightRepository flightRepository;
     private final FlightMapper flightMapper;
     private final AirportService airportService;
     private final AirlineService airlineService;
 
-    public List<FlightResponse> findAll() {
-        return flightRepository.findAll().stream().map(flightMapper::toResponse).toList();
+    /** One page of flights, ordered by departure time. */
+    public Page<FlightResponse> findAll(Pageable pageable) {
+        return flightRepository.findAll(Pages.ordered(pageable, ORDER)).map(flightMapper::toResponse);
     }
 
     /**

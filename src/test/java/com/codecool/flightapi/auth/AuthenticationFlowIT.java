@@ -237,7 +237,29 @@ class AuthenticationFlowIT {
     void validTokenGrantsAccess() throws Exception {
         mockMvc.perform(get("/api/v1/airports").header(HttpHeaders.AUTHORIZATION, bearer(userToken)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].iataCode").value("OTP"));
+                .andExpect(jsonPath("$.content[0].iataCode").value("OTP"))
+                .andExpect(jsonPath("$.content[0].city.cityName").value("Bucuresti"))
+                .andExpect(jsonPath("$.page.totalElements").value(4));
+    }
+
+    @Test
+    @DisplayName("lists are paged: ?page and ?size select the slice, a huge size is capped, sort is ignored")
+    void listsArePaged() throws Exception {
+        mockMvc.perform(get("/api/v1/airports?page=1&size=3&sort=airportName,desc")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(userToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].iataCode").value("TSR"))
+                .andExpect(jsonPath("$.page.number").value(1))
+                .andExpect(jsonPath("$.page.totalPages").value(2));
+        mockMvc.perform(get("/api/v1/airlines?size=100000").header(HttpHeaders.AUTHORIZATION, bearer(userToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page.size").value(100));
+        // an unknown sort property must not reach the query (it would be a 500)
+        mockMvc.perform(get("/api/v1/flights?sort=noSuchProperty")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(adminToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(5));
     }
 
     @Test

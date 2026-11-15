@@ -10,6 +10,7 @@ import com.codecool.flightapi.city.CityMapperImpl;
 import com.codecool.flightapi.city.CityService;
 import com.codecool.flightapi.common.money.MoneyMapperImpl;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import org.hibernate.Hibernate;
 import org.junit.jupiter.api.DisplayName;
@@ -19,6 +20,8 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 
 /**
  * The flight search query against the real Flyway schema and seed data (embedded H2), called through
@@ -49,9 +52,10 @@ class FlightRepositoryTest {
     private FlightRepository flightRepository;
 
     @Test
-    @DisplayName("findAll/findById load the lazy airports, cities and airline in the same query")
+    @DisplayName("paged findAll and findById load the lazy airports, cities and airline in the same query")
     void entityGraphLoadsRelations() {
-        List<Flight> flights = flightRepository.findAll();
+        List<Flight> flights =
+                new ArrayList<>(flightRepository.findAll(PageRequest.of(0, 3)).getContent());
         flights.add(flightRepository.findById(1L).orElseThrow());
 
         assertThat(flights).hasSizeGreaterThan(1).allSatisfy(flight -> {
@@ -62,6 +66,24 @@ class FlightRepositoryTest {
                     .isTrue();
             assertThat(Hibernate.isInitialized(flight.getAirline())).isTrue();
         });
+    }
+
+    @Test
+    @DisplayName("flights are paged in departure order, with the total count")
+    void findAllPagesInDepartureOrder() {
+        // the five seed flights all leave at 09:30 local time, so the three from Romania (UTC+2) leave
+        // first, then the one from Paris, then the one from London
+        Page<FlightResponse> first = flightService.findAll(PageRequest.of(0, 2));
+        Page<FlightResponse> last = flightService.findAll(PageRequest.of(2, 2));
+
+        assertThat(first.getTotalElements()).isEqualTo(5);
+        assertThat(first.getTotalPages()).isEqualTo(3);
+        assertThat(first.getContent())
+                .extracting(flight -> flight.departureAirport().iataCode())
+                .containsExactly("OTP", "OTP");
+        assertThat(last.getContent())
+                .extracting(flight -> flight.departureAirport().iataCode())
+                .containsExactly("LHR");
     }
 
     @ParameterizedTest(name = "{0} -> {1}")

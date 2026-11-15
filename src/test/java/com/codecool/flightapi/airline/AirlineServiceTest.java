@@ -16,6 +16,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 /** Revives the airline tests that were commented out in FlightApiProjectApplicationTests, as unit tests. */
 @ExtendWith(MockitoExtension.class)
@@ -34,13 +39,19 @@ class AirlineServiceTest {
     }
 
     @Test
-    void findAllReturnsEveryAirline() {
-        when(airlineRepository.findAll())
-                .thenReturn(List.of(tarom, new Airline(10001L, "Wizz", "WZZ"), new Airline(10002L, "BlueAir", "BMS")));
+    void findAllReturnsTheRequestedPageOrderedById() {
+        // whatever sort the client asks for, the page is read in id order
+        Pageable byId = PageRequest.of(1, 3, Sort.by("id"));
+        when(airlineRepository.findAll(byId))
+                .thenReturn(new PageImpl<>(
+                        List.of(tarom, new Airline(10001L, "Wizz", "WZZ"), new Airline(10002L, "BlueAir", "BMS")),
+                        byId,
+                        7));
 
-        assertThat(airlineService.findAll())
-                .extracting(AirlineResponse::name)
-                .containsExactly("Tarom", "Wizz", "BlueAir");
+        Page<AirlineResponse> page = airlineService.findAll(PageRequest.of(1, 3, Sort.by("name")));
+
+        assertThat(page.getContent()).extracting(AirlineResponse::name).containsExactly("Tarom", "Wizz", "BlueAir");
+        assertThat(page.getTotalElements()).isEqualTo(7);
     }
 
     @Test
